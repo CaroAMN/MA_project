@@ -1,20 +1,28 @@
+################################################################################
+###                                Purpose                                   ###
+################################################################################
 
-
+################################################################################
+###                               Manual steps                               ###
+################################################################################
 setwd("/Users/cschwitalla/Documents/Immunopeptidomics/")
 
-library("stringr")
-library("RColorBrewer")
-library("tidyr")
-library("dplyr")
-library("tibble")
-library("ggplot2")
-library("viridis")
-library("VennDiagram")
-library("tuple")
-library("org.Hs.eg.db") 
-library("ggVennDiagram")
-library("readxl")
+# inputdir <-
+# outputdir <-
+source("functions_ligandomics.R")
+################################################################################
+###                             Load libraries                               ###
+################################################################################
+required_Libs <- c("tidyr","readxl", "ggVennDiagram", "dplyr", "stringr", "tibble", 
+                   "ggplot2", "org.Hs.eg.db")
 
+# invisible(lapply(necessaryLibs, BiocManager::install, update = F, ask = F))
+suppressMessages(invisible(lapply(required_Libs, library, character.only = T)))
+
+
+################################################################################
+###                            Load Data                                     ###
+################################################################################
 
 
 # KNOWN BENIGN PEPTIDE DATA--------------------------------
@@ -52,8 +60,8 @@ for(i in rewritten_hlatypes){
 #Benign data Immunology -> from Marissa ==================================
 #more specific
 #less hits 
-Benigniome_I = read.csv("/Users/cschwitalla/Documents/Ligandomics_analysis/newBenignmorespecific/Benign_class1.csv", header = FALSE, sep = ",", col.names = c("Peptide", "Acc", "V3", "Tissue", "V5"))
-Benigniome_II = read.csv("/Users/cschwitalla/Documents/Ligandomics_analysis/newBenignmorespecific/Benign_class2.csv", header = FALSE, sep = ",", col.names = c("Peptide", "Acc", "V3", "Tissue", "V5","V6"))
+Benigniome_I = read.csv("/Users/cschwitalla/Documents/Immunopeptidomics/newBenignmorespecific/Benign_class1.csv", header = FALSE, sep = ",", col.names = c("Peptide", "Acc", "V3", "Tissue", "V5"))
+Benigniome_II = read.csv("/Users/cschwitalla/Documents/Immunopeptidomics/newBenignmorespecific/Benign_class2.csv", header = FALSE, sep = ",", col.names = c("Peptide", "Acc", "V3", "Tissue", "V5","V6"))
 #filter out all double mappers 
 Benigniome_I_unique_acc = Benigniome_I[- grep(";",Benigniome_I$Acc),]
 Benigniome_II_unique_acc = Benigniome_II[- grep(";", Benigniome_II$Acc),]
@@ -432,6 +440,16 @@ setII_filter = list(NEC = NEC_II_uniqe_acc_filterd$Accessions, T1 = T1_II_uniqe_
 
 ggVennDiagram(set_filter, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class I protein acc, beningiome filterd")
 ggVennDiagram(setII_filter, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class II protein acc, beningiome filterd")
+
+
+
+set_filter_seq = list(NEC = NEC_I_uniqe_acc_filterd$Sequence, T1 = T1_I_uniqe_acc_filterd$Sequence, INF = INF_I_uniqe_acc_filterd$Sequence, BEN = Benigniome_I_unique_acc$Peptide, BENDB = c(Benigniome_I_unique_acc$Acc,HLA_Atlas_I_uniqaccs$peptide_sequence))
+setII_filter_seq = list(NEC = NEC_II_uniqe_acc_filterd$Sequence, T1 = T1_II_uniqe_acc_filterd$Sequence, INF = INF_II_uniqe_acc_filterd$Sequence, BEN = Benigniome_II_unique_acc$Peptide, BENDB = c(Benigniome_II_unique_acc$Acc,HLA_Atlas_II_uniqaccs$peptide_sequence))
+
+
+ggVennDiagram(set_filter_seq, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class I peptides")
+ggVennDiagram(setII_filter_seq, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class II peptides")
+
 
 
 #WATERFALL PLOTS -----------------------------------------------------------------
