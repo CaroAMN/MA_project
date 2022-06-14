@@ -16,7 +16,6 @@ source("functions_ligandomics.R")
 required_Libs <- c("tidyr","readxl", "ggVennDiagram", "dplyr", "stringr", "tibble", 
                    "ggplot2", "org.Hs.eg.db")
 
-# invisible(lapply(necessaryLibs, BiocManager::install, update = F, ask = F))
 suppressMessages(invisible(lapply(required_Libs, library, character.only = T)))
 
 
@@ -247,31 +246,7 @@ BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_II_uniqe_acc_filterd, !(Sequence %
 
 
 
-#Get Protein ACC Functions--------------------------------
-getProteinAcc <- function(list){
-  Pacc = c()
-  acc_only = c()
-  
-  for( i in list){
-    str = strsplit(i, ";")
-    Pacc = append(Pacc, str[[1]])
-  }
-  for (i in Pacc){
-    str = strsplit(i, "|", fixed = TRUE)
-    acc_only = append(acc_only, str[[1]][2])
-  }
-  return(acc_only)
-}
 
-getProteinAcc_uniqemappers <- function(list){
-  acc_only = c()
-  for (i in list){
-    str = strsplit(i, "|", fixed = TRUE)
-    acc_only = append(acc_only, str[[1]][2])
-  }
-  return(acc_only)
-  
-}
 
 #PLOTS---------------------------------------------------------
 
