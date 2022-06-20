@@ -86,7 +86,7 @@ for (com in apply(combn(levels(dds_default$Tumor_region), 2), 2, paste, collapse
   # get DE genes and append them into DE_genes list
   DE_genes <- append(DE_genes, res_df$Names[res_df$significant == "SIG"])
   # write results as tsv into the workdir to stor results
-  write.table(res_df, file = paste(output_dir ,com, ".tsv"), sep = "\t", quote = FALSE)
+  write.table(res_df, file = paste(output_dir, com, ".tsv"), sep = "\t", quote = FALSE)
   # make MA plot and save it as png in output dir
   pdf(paste0(output_dir, "MAplot_", com, ".pdf"))
   DESeq2::plotMA(res_df, xlim = c(1, 1e5), ylim = c(-4, 4), main = com)

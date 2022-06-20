@@ -9,7 +9,7 @@
 ################################################################################
 ###                             Hard coded Variables                         ###
 ################################################################################
-# colors for oncoplot itself 
+# colors for oncoplot itself
 vc_cols <- setNames(
   c("#A00202", "#438EA9", "#436211", "#323949", "#EE6D17", "#FFC61A"),
   c(
@@ -43,16 +43,16 @@ compute_vaf <- function(maf_obj) {
 ## DESCRIPTION: mapping meta data to colors for annotation color in oncoplots
 ## PARAMETERS:
 ##             - dregion_column: matadata df column were tumor region / conditions
-##                               are listed 
+##                               are listed
 ##             - patient_column: metadata df column were patien ids are listed
-## OUTPUT: returns a list of lists 
+## OUTPUT: returns a list of lists
 ##
-create_annotation_color <- function(patient_column , region_column) {
+create_annotation_color <- function(patient_column, region_column) {
   patient_scale <- colorRampPalette(c("#543005", "#f5f5f5", "#003c30"))
-  region_color <- c("#4B6C22","#74add1","#9e0142", "#fdae61")
-  #get the number of uniqe patient ids to extract colors from color scale
+  region_color <- c("#4B6C22", "#74add1", "#9e0142", "#fdae61")
+  #get the number of unique patient ids to extract colors from color scale
   sample_num <- length(unique(patient_column))
-  # get a specific color palette with num of patients 
+  # get a specific color palette with num of patients
   patient_color <- patient_scale(sample_num)
   # set names to asign for each level the right color
   names(patient_color) <- unique(patient_column)
@@ -60,4 +60,3 @@ create_annotation_color <- function(patient_column , region_column) {
   annotation_color <- list(Tumor_region = region_color, Patient_ID = patient_color)
   return(annotation_color)
 }
-

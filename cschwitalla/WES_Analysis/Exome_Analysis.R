@@ -55,10 +55,12 @@ for (dir in region_dir) {
   # append maf file into list
   regionmaf_list <- append(regionmaf_list, maf)
   #make annotation list with metadata
-  anno_color <- create_annotation_color(patient_column = metadata$Patient_ID, 
+  anno_color <- create_annotation_color(patient_column = metadata$Patient_ID,
                                         region_column = metadata$Tumor_region)
-  # make pdf 
-  pdf(paste0(output_dir, names(region_dir)[match(dir, region_dir)], "_oncoplot.pdf"), width = 10, height = 8)
+  # make pdf
+  pdf(paste0(output_dir, names(region_dir)[match(dir, region_dir)], "_oncoplot.pdf"),
+      width = 10,
+      height = 8)
   # make oncoplot for current maf that will exported as pdf in the output dir
   oncoplot(
     maf = maf,
