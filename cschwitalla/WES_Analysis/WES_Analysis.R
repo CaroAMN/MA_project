@@ -2,17 +2,51 @@
 library(maftools)
 library("RColorBrewer")
 library("VennDiagram")
+
+library("ggVennDiagram")
 library("ggplot2")
+library(dbplyr)
+library(plyr)
+
+
+library("GenVisR")
 setwd("/Users/cschwitalla/Documents/WES_data")
 
 
-library(TcellExTRECT)
-
+nec_test_maf <- read.maf("/Users/cschwitalla/Documents/WES_data/necrotic/concat_maf_files/all_NEC.maf")
+makeOncoplot(nec_test_maf)
 # MAPPING OF PATIENT ID TO QBIC ID---------------------
 NEC_meta = read.table(file = "./PBMC_vs_Necrotic.tsv", sep = "\t", header = FALSE)
+names(NEC_meta) = c("ZH", "sex", "Norm/Tumor", "QBIC_ID","LANE", "File1", "FIle2")
+
 T1_meta = read.table(file = "./PBMC_vs_T1.tsv", sep = "\t", header = FALSE)
+names(T1_meta) = c("ZH", "sex", "Norm/Tumor", "QBIC_ID","LANE", "File1", "FIle2")
+
+
 INF_meta = read.table(file = "./PBMC_vs_Peritumoral.tsv", sep = "\t", header = FALSE)
+names(INF_meta) = c("ZH", "sex", "Norm/Tumor", "QBIC_ID","LANE", "File1", "FIle2")
+
+
+
+
 BEN_meta = read.table(file = "./PBMC_Benign.tsv", sep = "\t", header = FALSE)
+names(BEN_meta) = c("ZH", "sex", "Norm/Tumor", "QBIC_ID","LANE", "File1", "FIle2")
+
+nec_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/NEC_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
+t1_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/T1_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
+inf_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/INF_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
+ben_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/BEN_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
+
+nec_patient_mapping = unique(nec_patient_mapping)
+t1_patient_mapping = unique(t1_patient_mapping)
+inf_patient_mapping = unique(inf_patient_mapping)
+ben_patient_mapping = unique(ben_patient_mapping)
+
+names(nec_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
+names(t1_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
+names(inf_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
+names(ben_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
+
 
 # das ist etwas anders wie ich dachte geht nicht einfach die bening samples reinzubringen 
 
@@ -37,6 +71,7 @@ colnames(clin_data_ben) = "patient_ID"
 region = rep("BEN",times=4)
 clin_data_ben$Tumor_region = region
 clin_data_ben$Tumor_Sample = patientID_ben
+
 
 # BEN vs PBMC!!!
 list_maf_benPBMC = list.files(path = "./ben/PBMC_vs_BEN/Annotation/VEP/maf_converted/", full.names = TRUE)
@@ -64,6 +99,7 @@ colnames(clin_data_benPBMC) = "Tumor_Sample"
 clin_data_benPBMC$patient_ID = patientID_benPBMC
 region = rep("BEN",times=4)
 clin_data_benPBMC$Tumor_region = region
+clin_data_benPBMC = merge(clin_data_benPBMC, unique(ben_patient_mapping), by.x = "patient_ID", by.y = "Tumor_Sample_Barcode", all.x = TRUE)
 
 
 #read in necrotic maf files
@@ -94,8 +130,7 @@ colnames(clin_data_nec) = "Tumor_Sample"
 clin_data_nec$patient_ID = patientID_nec
 region = rep("NEC",times=15)
 clin_data_nec$Tumor_region = region
-
-
+clin_data_nec = merge(clin_data_nec, unique(nec_patient_mapping), by.x = "patient_ID", by.y = "Tumor_Sample_Barcode", all.x = TRUE)
 
 #read in t1 maf files
 list_maf_t1 = list.files(path = "./t1/maf_converted/", full.names = TRUE)
@@ -126,6 +161,7 @@ colnames(clin_data_t1) = "Tumor_Sample"
 clin_data_t1$patient_ID = patientID_t1
 region = rep("T1",times=15)
 clin_data_t1$Tumor_region = region
+clin_data_t1 = merge(clin_data_t1, unique(t1_patient_mapping), by.x = "patient_ID", by.y = "Tumor_Sample_Barcode", all.x = TRUE)
 
 #read in peritumoral maf files
 list_maf_peritumoral = list.files(path = "./peritumoral/maf_converted/", full.names = TRUE)
@@ -158,6 +194,7 @@ colnames(clin_data_inf) = "Tumor_Sample"
 clin_data_inf$patient_ID = patientID_inf
 region = rep("INF",times=14)
 clin_data_inf$Tumor_region = region
+clin_data_inf = merge(clin_data_inf, unique(inf_patient_mapping), by.x = "patient_ID", by.y = "Tumor_Sample_Barcode", all.x = TRUE)
 
 
 #complete dataset 
@@ -385,21 +422,24 @@ creatClinData <- function(file_list,patientID){
 }
 
 
-clin_data_p1 = creatClinData(p1,patientID_list[1])
-clin_data_p2 = creatClinData(p2,patientID_list[2])
-clin_data_p3 = creatClinData(p3,patientID_list[3])
-clin_data_p4 = creatClinData(p4,patientID_list[4])
-clin_data_p5 = creatClinData(p5,patientID_list[5])
-clin_data_p6 = creatClinData(p6,patientID_list[6])
-clin_data_p7 = creatClinData(p7,patientID_list[7])
-clin_data_p8 = creatClinData(p8,patientID_list[8])
-clin_data_p9 = creatClinData(p9,patientID_list[9])
-clin_data_p10 = creatClinData(p10,patientID_list[10])
-clin_data_p11 = creatClinData(p11,patientID_list[11])
-clin_data_p12 = creatClinData(p12,patientID_list[12])
-clin_data_p13 = creatClinData(p13,patientID_list[13])
-clin_data_p14 = creatClinData(p14,patientID_list[14])
-clin_data_p15 = creatClinData(p15,patientID_list[15])
+NEC_meta$ZH
+
+
+clin_data_p1 = creatClinData(p1,unique(NEC_meta$ZH[1]))
+clin_data_p2 = creatClinData(p2,unique(EC_meta$ZH[2]))
+clin_data_p3 = creatClinData(p3,unique(NEC_meta$ZH[3]))
+clin_data_p4 = creatClinData(p4,unique(NEC_meta$ZH[4]))
+clin_data_p5 = creatClinData(p5,NEC_meta$ZH[5])
+clin_data_p6 = creatClinData(p6,NEC_meta$ZH[6])
+clin_data_p7 = creatClinData(p7,NEC_meta$ZH[7])
+clin_data_p8 = creatClinData(p8,NEC_meta$ZH[8])
+clin_data_p9 = creatClinData(p9,NEC_meta$ZH[9])
+clin_data_p10 = creatClinData(p10,NEC_meta$ZH[10])
+clin_data_p11 = creatClinData(p11,NEC_meta$ZH[11])
+clin_data_p12 = creatClinData(p12,NEC_meta$ZH[12])
+clin_data_p13 = creatClinData(p13,NEC_meta$ZH[13])
+clin_data_p14 = creatClinData(p14,NEC_meta$ZH[14])
+clin_data_p15 = creatClinData(p15,NEC_meta$ZH[15])
 
 # merge maf files for all patients
 
@@ -419,7 +459,7 @@ p13_maf =  merge_mafs(p13, clinicalData = clin_data_p13)
 p14_maf =  merge_mafs(p14, clinicalData = clin_data_p14)
 p15_maf =  merge_mafs(p15, clinicalData = clin_data_p15)
 
-# ONCOPLOTS----------------------------------------
+
 
 #per patient ==========
 par(mfrow = c(2,1))
@@ -462,8 +502,8 @@ write.table(clin_data_t1, file = "/Users/cschwitalla/Documents/WES_data/necrotic
 write.table(clin_data_inf, file = "/Users/cschwitalla/Documents/WES_data/necrotic/clin_data_INF.txt", row.names = FALSE, quote = FALSE)
 write.table(clin_data_benPBMC, file = "/Users/cschwitalla/Documents/WES_data/necrotic/clin_data_benPBMC.txt", row.names = FALSE, quote = FALSE)
 
-# PLOTS -------------------------------
-#ONCOPLOTS ============================
+
+#ONCOPLOTS GUUT---------------------------------------
 
 #Variant allel Frequency
 # ----- from Rike
@@ -484,22 +524,158 @@ compute_vaf <- function(maf_obj){
 
 #necrotic
 vaf_nec = compute_vaf(necrotic_mafset)
-oncoplot(maf = necrotic_mafset, leftBarData = vaf_nec)
-
+oncoplot(maf = necrotic_mafset, leftBarData = vaf_nec, genes = c(nec_most_mut$Hugo_Symbol))
 
 #t1
 vaf_t1 = compute_vaf(t1_mafset)
-oncoplot(maf = t1_mafset, leftBarData = vaf_t1)
+oncoplot(maf = t1_mafset, leftBarData = vaf_t1, genes = c(t1_most_mut$Hugo_Symbol))
+
 
 #peritumoral
 vaf_inf = compute_vaf(peritumoral_mafset)
-oncoplot(maf = peritumoral_mafset, leftBarData = vaf_inf)
+oncoplot(maf = peritumoral_mafset, leftBarData = vaf_inf, genes = c(inf_most_mut$Hugo_Symbol))
+
 
 #ben 
-oncoplot(maf = benPBMC_mafset, draw_titv = TRUE)
+vaf_ben = compute_vaf(benPBMC_mafset)
+oncoplot(maf = benPBMC_mafset, leftBarData = vaf_ben, genes = c(ben_most_mut$Hugo_Symbol))
+
+
+#diff in mutated genes------------------------
+nec_most_mut = getGeneSummary(necrotic_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+#t1_most_mut = getGeneSummary(t1_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+#inf_most_mut = getGeneSummary(peritumoral_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+#ben_most_mut = getGeneSummary(benPBMC_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+
+
+nec_most_mut = nec_most_mut
+
+nec_mut_all = getGeneSummary(necrotic_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+t1_mut_all = getGeneSummary(t1_mafset)[,c("Hugo_Symbol","MutatedSamples")]
+inf_mut_all = getGeneSummary(peritumoral_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+ben_mut_all = getGeneSummary(benPBMC_mafset)[,c("Hugo_Symbol","MutatedSamples")] 
+
+
+nec_mut_all = getGeneSummary(necrotic_mafset)
+
+
+table(nec_mut_all$MutatedSamples)
+table(t1_mut_all$MutatedSamples)
+table(inf_mut_all$MutatedSamples)
+table(ben_mut_all$MutatedSamples)
+
+#color oncoplot 
+vc_cols = RColorBrewer::brewer.pal(n = 6, name = "Set1")
+#vc_cols = c("#3288bd", "#99d594", "#e6f598", "#fee08b", "#fc8d59", "#d53e4f")
+
+#vc_cols= c("#FF7F00" ,"#1F78B4" , "#FB9A99", "#252525","#33A02C", "#6A3D9A" )
+#vc_cols = c("#4575b4", "#91bfdb", "#e0f3f8", "#f33090", "#fc8d59", "#d73027")
+#vc_cols=c("#E41A1C", "#377EB8" ,"#4DAF4A", "#252525", "#FF7F00" ,"#FFFF33")
+
+vc_cols = c("#A00202", "#438EA9", "#436211", "#323949", "#EE6D17", "#FFC61A")
+names(vc_cols) = c(  'Frame_Shift_Del','Missense_Mutation',
+                     'Nonsense_Mutation',
+                     'Multi_Hit',
+                     'Frame_Shift_Ins',
+                     'In_Frame_Del'
+)
+
+#Tumor region color 
+regioncolor = c("#9e0142", "#fdae61", "#74add1", "#4B6C22")   #"#4B6C22") 
+  #c("#DF7D40", "#FAC941", "#49A7A9", "#8CAC57")
+names(regioncolor) = c("NEC", "T1", "INF", "BEN")
+regioncolor = setNames(c("#9e0142", "#fdae61", "#74add1", "#4B6C22") ,c("NEC", "T1", "INF", "BEN") )
+regioncolor
+#patienid color
+
+patientcolor = c("#a7c0b2",
+  "#9bb6ab",
+  "#8faba3",
+  "#84a19c",
+  "#7a9795",
+  "#708d8d",
+  "#678285",
+  "#5f787d",
+  "#576e75",
+  "#4f646d",
+  "#485a64",
+  "#42515b",
+  "#3b4752",
+  "#353e49",
+  "#2f3540")
+
+
+patientcolor2 = c("#543005",
+  "#8c510a",
+  "#A6691C",
+  "#bf812d",
+  "#CFA255",
+  "#dfc27d",
+  "#f6e8c3",
+  "#f5f5f5",
+  "#c7eae5",
+  "#80cdc1",
+  "#5BB2A8",
+  "#35978f",
+  "#1B7F77",
+  "#01665e",
+  "#003c30")
+names(patientcolor) = unique(c(clin_data_all$Patient))
+names(patientcolor2) = unique(c(clin_data_all$Patient))
+
+annotation_color = list(Tumor_region = regioncolor, Patient = patientcolor2)
+
+#sample order
+sample_order = unique(c(clin_data_all$Tumor_Sample_Barcode))
+
+
+#plot oncoplot 
+oncoplot(maf = all_mafset, draw_titv = FALSE, clinicalFeatures =  c("Tumor_region", "Patient" ),
+         sortByAnnotation = TRUE, colors = vc_cols, 
+         removeNonMutated = FALSE ,
+        # genes = unique(c(nec_most_mut$Hugo_Symbol, t1_most_mut$Hugo_Symbol, inf_most_mut$Hugo_Symbol, ben_most_mut$Hugo_Symbol)), 
+         leftBarData = compute_vaf(all_mafset),
+         sampleOrder = sample_order,
+         annotationColor = annotation_color,
+         gene_mar = 6)
+
+
+# colors for patient ids
+patientcolor2 = setNames(c("#543005", "#8c510a", "#A6691C", "#bf812d", "#CFA255", 
+                           "#dfc27d", "#f6e8c3", "#f5f5f5", "#c7eae5" ,"#80cdc1", 
+                           "#5BB2A8", "#35978f", "#1B7F77", "#01665e", "#003c30"),
+                         unique(c(maffile@clinical.data[["Patient_ID"]])))
+# colors for tumor regions
+regioncolor = setNames(c("#9e0142", "#fdae61", "#74add1", "#4B6C22") ,c("NEC", "T1", "INF", "BEN") )
+# make list of tumor region and patient colors for annotation in oncoplot
+annotation_color = list(Tumor_region = regioncolor, Patient = patientcolor2)
+# colors for oncoplot itself -->
+vc_cols = setNames(c("#A00202", "#438EA9", "#436211", "#323949", "#EE6D17", "#FFC61A"), 
+                   c(  'Frame_Shift_Del', 'Missense_Mutation', 'Nonsense_Mutation',
+                       'Multi_Hit', 'Frame_Shift_Ins', 'In_Frame_Del'))
 
 
 
+
+
+#venn diagram ===========================================
+
+mostMutgenes_list = list(NEC = c(nec_most_mut$Hugo_Symbol), T1 = c(t1_most_mut$Hugo_Symbol), INF = c(inf_most_mut$Hugo_Symbol), BEN = c(ben_most_mut$Hugo_Symbol)) 
+
+ggVennDiagram(mostMutgenes_list, label_alpha = 0, label = "count", label_size = 5) + 
+  scale_fill_gradient(low = "papayawhip", high = "paleturquoise4") + 
+  scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) 
+
+#+ 
+#  ggtitle(" most mutated genes of each region")
+
+library(gplots)
+v.table <- venn(mostMutgenes_list)
+print(v.table )
+
+
+
+#SHIT ----------------------------------------------
 # combine all patient mafs+clindata
 patien_clin_data = rbind(clin_data_p1,clin_data_p2, clin_data_p3,clin_data_p4,
                          clin_data_p5,clin_data_p6,clin_data_p7,clin_data_p8,
@@ -518,23 +694,12 @@ library("ColourBrewer")
 # hier kann man noch nach regionen clustern sozusagen 
 brewer.pal(n = 9,"Set1")
 
-vc_cols = RColorBrewer::brewer.pal(n = 6, name = "Set1")
-#vc_cols = c("#3288bd", "#99d594", "#e6f598", "#fee08b", "#fc8d59", "#d53e4f")
 
-#vc_cols= c("#FF7F00" ,"#1F78B4" , "#FB9A99", "#252525","#33A02C", "#6A3D9A" )
-#vc_cols = c("#4575b4", "#91bfdb", "#e0f3f8", "#f33090", "#fc8d59", "#d73027")
-vc_cols=c("#E41A1C", "#377EB8" ,"#4DAF4A", "#252525", "#FF7F00" ,"#FFFF33")
-names(vc_cols) = c(  'Frame_Shift_Del','Missense_Mutation',
-                     'Nonsense_Mutation',
-                     'Multi_Hit',
-                     'Frame_Shift_Ins',
-                     'In_Frame_Del'
-)
 #ann_cols = 
 library("svglite")
 
 
-oncoplot(maf = all_mafset, draw_titv = TRUE, clinicalFeatures =  "Tumor_region", sortByAnnotation = TRUE, colors = vc_cols, removeNonMutated = FALSE)
+oncoplot(maf = all_mafset, draw_titv = TRUE, clinicalFeatures =  "Tumor_region", sortByAnnotation = TRUE, colors = vc_cols, removeNonMutated = FALSE ,genes = unique(c(nec_most_mut$Hugo_Symbol, t1_most_mut$Hugo_Symbol, inf_most_mut$Hugo_Symbol, ben_most_mut$Hugo_Symbol)))
 oncoplot(maf = all_excBEN_mafset, clinicalFeatures = "Tumor_region", sortByAnnotation = TRUE, colors=vc_cols,removeNonMutated = FALSE )
 
 oncoplot(maf = all_excBEN_mafset, clinicalFeatures = "Tumor_region", sortByAnnotation = TRUE, colors=vc_cols,removeNonMutated = FALSE )
@@ -550,7 +715,7 @@ write(all_mafset, "/Users/cschwitalla/Documents/WES_data/all_mafset.maf")
 
 
 
-library(dplyr)
+
 
 
 # -----
@@ -603,20 +768,6 @@ kit_size
 #Lolipop plots -----------------------------
 
 #make my own lollipop plot =============================
-nec_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/NEC_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
-t1_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/T1_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
-inf_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/INF_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
-ben_patient_mapping = read.csv("/Users/cschwitalla/Documents/WES_data/BEN_PATIENT_MAPPING.tsv", header = FALSE, sep = "\t" )
-
-nec_patient_mapping = unique(nec_patient_mapping)
-t1_patient_mapping = unique(t1_patient_mapping)
-inf_patient_mapping = unique(inf_patient_mapping)
-ben_patient_mapping = unique(ben_patient_mapping)
-
-names(nec_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
-names(t1_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
-names(inf_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
-names(ben_patient_mapping) = c("Patient", "Tumor_Sample_Barcode")
 
 
 nec_maf_subset = necrotic_mafset@data
@@ -683,8 +834,8 @@ Lollipop_plot <- function(genename, maffile_subset){
     geom_segment( aes(x=as.numeric(AA_mut), xend=as.numeric(AA_mut), y=0, yend=V1), color ="grey") +
     geom_point(aes(colour = factor(Variant_Classification)), size=4) + 
     geom_text(nudge_x = 0, nudge_y = 0.4)+
-    scale_x_continuous(limits = c(1,as.numeric(total)))+
-    annotate("rect", xmin = 1, xmax = as.numeric(total), ymin = -0.25, ymax = 0.25, alpha = 0.5, fill = "grey")+
+    scale_x_continuous(limits = c(1,as.numeric(total_len)))+
+    annotate("rect", xmin = 1, xmax = as.numeric(total_len), ymin = -0.25, ymax = 0.25, alpha = 0.5, fill = "grey")+
     annotate("rect", xmin = prot[,Start], xmax = prot[,End], ymin = -0.4, ymax = 0.4, fill=prot[,domainCol], alpha = 0.75, color = "lightsteelblue4")+
     annotate("text", x = ((prot[,End]-prot[,Start])/2) +prot[,Start], y = 0, label = prot[,Label])+
     theme_light() +
@@ -698,11 +849,29 @@ Lollipop_plot <- function(genename, maffile_subset){
 }
 
 Lollipop_plot("OR8U1", nec_maf_subset[which(nec_maf_subset$Hugo_Symbol == "OR8U1"),])
+Lollipop_plot("OR8U1", t1_maf_subset[which(t1_maf_subset$Hugo_Symbol == "OR8U1"),])
+Lollipop_plot("OR8U1", inf_maf_subset[which(inf_maf_subset$Hugo_Symbol == "OR8U1"),])
+Lollipop_plot("OR8U1", ben_maf_subset[which(ben_maf_subset$Hugo_Symbol == "OR8U1"),])
 
 
+Lollipop_plot("LNP1", nec_maf_subset[which(nec_maf_subset$Hugo_Symbol == "LNP1"),])
+Lollipop_plot("LNP1", t1_maf_subset[which(t1_maf_subset$Hugo_Symbol == "LNP1"),])
+Lollipop_plot("LNP1", inf_maf_subset[which(inf_maf_subset$Hugo_Symbol == "LNP1"),])
+Lollipop_plot("LNP1", ben_maf_subset[which(ben_maf_subset$Hugo_Symbol == "LNP1"),])
+
+
+
+Lollipop_plot("CHIT1", nec_maf_subset[which(nec_maf_subset$Hugo_Symbol == "CHIT1"),])
+Lollipop_plot("CHIT1", t1_maf_subset[which(t1_maf_subset$Hugo_Symbol == "CHIT1"),])
+Lollipop_plot("CHIT1", inf_maf_subset[which(inf_maf_subset$Hugo_Symbol == "CHIT1"),])
+Lollipop_plot("CHIT1", ben_maf_subset[which(ben_maf_subset$Hugo_Symbol == "CHIT1"),])
+
+
+Lollipop_plot("LNP1", nec_maf_subset[which(nec_maf_subset$Hugo_Symbol == "LNP1"),])
+Lollipop_plot("TP53", nec_maf_subset[which(nec_maf_subset$Hugo_Symbol == "TP53"),])
 
 #test stuff -------------------------
-
+nec_maf_subset$PolyPhen
 
 OR8U1_nec = nec_maf_subset[which(nec_maf_subset$Hugo_Symbol == "OR8U1"),]
 

@@ -1,29 +1,46 @@
 ################################################################################
 ###                                Purpose                                   ###
 ################################################################################
-## Title: Functions for RNAseq Analysis 
+## Title: Functions for RNAseq Analysis
 ## Author: Carolin Schwitalla
-## 
+##
 ## Description: This script contains all functions that are used for the RNAseq
-##              analysis for my master thesis 
+##              analysis for my master thesis
 ################################################################################
 ###                                                                          ###
 ################################################################################
 
 # create tx2gene df that maps transcripts to genenames for tximport
-create_tx2gene <- function(){
+# according to DESeq2 documentation
+
+## DESCRIPTION: function that creates a tabel, mapping transcript IDs to
+##              gene names
+## Requirements: load EnsDb.Hsapiens.v86
+##
+##
+create_tx2gene <- function() {
   edb <- EnsDb.Hsapiens.v86
   k <- keys(edb, keytype = "TXNAME")
   tx2gene <- AnnotationDbi::select(edb, k, "GENENAME", "TXNAME")
-  name2ID <- AnnotationDbi::select(edb,k, "GENEID", "TXNAME")
-  mapping_df <- merge(tx2gene, name2ID, by = c("TXNAME","TXID"))
-  return(mapping_df)
+  return(tx2gene)
 }
 
 
-# diff expression analysis 
-DE_analysis <- function(deseq2_object, contrast, lfc, padj){
+## DESCRIPTION: function that performs DE analysis
+## PARAMETERS:
+##             - deseq2_object: DESeq(dds)
+##             - contrast: vector of strings, containing condition column
+##                         and 2 particular levels that should be compared
+##                         [vector]
+##             - lfc: threshold for log2FoldChange [numeric]
+##             - padj: threshold for p adjusted value [numeric]
+##
+DE_analysis <- function(deseq2_object, contrast, lfc, padj) {
   # get shrunken results of pairwise comparison
+  # shrinkage reduces noisy lfcs for low count genes
+  # contrast is used because of more than 2 conditions -->
+  # need to specify which conditions will be compared
+  # ashr type of shrinkage because by using contrast it's the only option
   DE_df <- lfcShrink(deseq2_object, contrast = contrast, type = "ashr")
   # include columns for UP , DOWN , SIG , expressed genes
   DE_df$significant <- "NO"
@@ -32,30 +49,118 @@ DE_analysis <- function(deseq2_object, contrast, lfc, padj){
   DE_df$diffexp[DE_df$log2FoldChange < 0 & DE_df$significant == "SIG"] <- "DOWN"
   DE_df$Names <- DE_df@rownames
   return(DE_df)
-  
 }
 
-# make volcano
-makeVolcano <- function(res_df, y_val, title){
-  EnhancedVolcano(res_df, lab = rownames(res_df),
-                  x = "log2FoldChange",
-                  y = y_val,
-                  FCcutoff = 3,
-                  pCutoff = 0.01,
-                  ylim = c(0, max(log10(res_df$padj))),
-                  xlim = c(min(res_df$log2FoldChange), 
-                           max(res_df$log2FoldChange)),
-                  ylab =  bquote(paste(-Log[10],.(y_val))),
-                  selectLab = NA,
-                  labSize = 3,
-                  drawConnectors = TRUE,
-                  title = title,
-                  legendPosition = "bottom",
-                  legendLabels = c("NS", "Log2 FC",
-                                   y_val,
-                                   paste(y_val,"& Log2 FC")))
-  
+## DESCRIPTION: function that makes Volcano plot
+## PARAMETERS:
+##             - res_df: DE dataframe from pairwise comparison [data frame]
+##             - y_val: set either padju or pval for y axis [string]
+##             - title: title of volcano plot [string]
+##             - lfc: log2FoldChange threshold [numeric]
+##             - padj: threshold for p adjusted value [numeric]
+## OUTPUT: plots a volcano plot of genes compared between two conditions
+##
+make_volcano <- function(res_df, y_val, title, lfc, padju) {
+  EnhancedVolcano(res_df,
+    lab = rownames(res_df),
+    x = "log2FoldChange",
+    y = y_val,
+    FCcutoff = lfc,
+    pCutoff = padju,
+    ylim = c(0, max(log10(res_df$padj))),
+    xlim = c(
+      min(res_df$log2FoldChange),
+      max(res_df$log2FoldChange)
+    ),
+    ylab = bquote(paste(-Log[10], .(y_val))),
+    selectLab = NA, # if TRUE: gene names will be visible as labels
+    labSize = 3, # gene label size
+    drawConnectors = TRUE, # gene and corresponding labels are
+    # connected with arrows
+    title = title,
+    legendPosition = "bottom",
+    legendLabels = c(
+      "NS", "Log2 FC",
+      y_val,
+      paste(y_val, "& Log2 FC")
+    )
+  )
 }
 
 
 
+## DESCRIPTION: mapping meta data to colors for annotation color in oncoplots
+## PARAMETERS:
+##            - region_column: matadata df column were tumor region /conditions
+##                             are listed
+##            - patient_column: metadata df column were patient ids are listed
+##            - sex_column: metadata df column were the patients sex is listed
+##            - meth_column: metadata df column were the patients
+##                           MGMT methylation status is listed
+## OUTPUT: returns a list of lists with colors for each factor level
+##
+create_annotation_color <- function(patient_column,
+                                    region_column,
+                                    sex_column,
+                                    meth_column) {
+  patient_scale <- colorRampPalette(c("#543005", "#f5f5f5", "#003c30"))
+  region_color <- c("#4B6C22", "#74add1", "#9e0142", "#fdae61")
+  sex_color <- c("#D5BD9E", "#565E71")
+  meth_color <- c("#4B6C22", "#74add1")
+
+  # get the number of uniqe patient ids to extract colors from color scale
+  sample_num <- length(unique(patient_column))
+  # get a specific color palette with num of patients
+  patient_color <- patient_scale(sample_num)
+  # set names to asign for each level the right color
+  names(patient_color) <- unique(patient_column)
+  names(region_color) <- sort(unique(region_column))
+  names(sex_color) <- sort(unique(sex_column))
+  names(meth_color) <- sort(unique(meth_column))
+  annotation_color <- list(
+    Tumor_region = region_color,
+    Patient_ID = patient_color,
+    Sex = sex_color,
+    MGMT_methylation = meth_color
+  )
+  return(annotation_color)
+}
+
+
+
+
+
+
+## DESCRIPTION: function that plots heatmap for a gene selection
+## PARAMETERS:
+##             - gene_selection: gene names that will be plotted [vector]
+##             - vsd: transformed count data object from DESeq2 [DESeq2_obj]
+##             - batch: column in metadata for which batch correction
+##                      should be performed [string]
+## OUTPUT: heatmap of selected genes with metadata column annotation
+make_heatmap <- function(gene_selection, vsd, batch, annotation_color) {
+  # get vst normalized counts df for gene selection
+  vsd_mat <- as.data.frame(assay(vsd)) %>%
+    dplyr::filter(row.names(assay(vsd)) %in% gene_selection)
+
+  if (!is.null(batch)) {
+    vsd_rm_batch <- limma::removeBatchEffect(vsd_mat, vsd$batch)
+    vsd_mat <- vsd_rm_batch
+  }
+  # annotation for heatmap
+  annotation_df <- data.frame(
+    "Tumor_region" = vsd@colData@listData$Tumor_region,
+    "Patient_ID" = vsd@colData@listData$Patient_ID,
+    "Sex" = vsd@colData@listData$Sex,
+    "MGMT_methylation" = vsd@colData@listData$MGMT
+  )
+
+  # draw heatmap
+  pheatmap(
+    vsd_mat,
+    scale = "row", # genes = rows are z-score transformed
+    show_rownames = FALSE,
+    annotation_col = annotation_df,
+    annotation_colors = annotation_color
+  )
+}
