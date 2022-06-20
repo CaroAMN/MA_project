@@ -35,7 +35,7 @@ source("/Users/cschwitalla/git/students/cschwitalla/WES_Analysis/functions_exome
 ###                             Load libraries                               ###
 ################################################################################
 # Load the libraries
-required_libs <- c("maftools", "ggplot2", "circlize")
+required_libs <- c("maftools", "ggplot2", "circlize", "")
 
 suppressMessages(invisible(lapply(required_Libs, library, character.only = T)))
 
@@ -44,10 +44,6 @@ suppressMessages(invisible(lapply(required_Libs, library, character.only = T)))
 ################################################################################
 # load metadata file
 metadata <- read.table(file = metadata_file, sep = "\t", header = TRUE)
-
-
-
-# TODO: bild größe anpassen
 # TODO: merge all mafs + make oncoplot for all mafs
 # list to store the merged maf files for each region
 regionmaf_list <- list()
@@ -58,17 +54,22 @@ for (dir in region_dir) {
   maf <- merge_mafs(files, clinicalData = metadata)
   # append maf file into list
   regionmaf_list <- append(regionmaf_list, maf)
-  # make png
-  png(paste0(output_dir, names(region_dir)[match(dir, region_dir)], "_oncoplot.png"))
-  # make oncoplot for current maf that will exported as png in the output dir
-  print(oncoplot(
+  #make annotation list with metadata
+  anno_color <- create_annotation_color(patient_column = metadata$Patient_ID, 
+                                        region_column = metadata$Tumor_region)
+  # make pdf 
+  pdf(paste0(output_dir, names(region_dir)[match(dir, region_dir)], "_oncoplot.pdf"), width = 10, height = 8)
+  # make oncoplot for current maf that will exported as pdf in the output dir
+  oncoplot(
     maf = maf,
     draw_titv = FALSE,
     clinicalFeatures = c("Patient_ID", "Tumor_region"),
     leftBarData = compute_vaf(maf), # see function script
-    annotationColor = annotation_color, # see function script
-    colors = vc_cols
-  )) # see function script
+    annotationColor = anno_color, # see function script
+    colors = vc_cols,
+    sortByAnnotation = TRUE,
+    gene_mar = 6
+   )# see function script
   dev.off()
 }
 # set names for merged maf files in the list, to see which region is it

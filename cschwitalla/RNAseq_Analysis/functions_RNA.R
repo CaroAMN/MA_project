@@ -12,6 +12,12 @@
 
 # create tx2gene df that maps transcripts to genenames for tximport
 # according to DESeq2 documentation
+
+## DESCRIPTION: function that creates a tabel, mapping transcript IDs to
+##              gene names
+## Requirements: load EnsDb.Hsapiens.v86
+##
+##
 create_tx2gene <- function() {
   edb <- EnsDb.Hsapiens.v86
   k <- keys(edb, keytype = "TXNAME")
@@ -22,11 +28,12 @@ create_tx2gene <- function() {
 
 ## DESCRIPTION: function that performs DE analysis
 ## PARAMETERS:
-#             - deseq2_object: DESeq(dds)
-#             - contrast: vector of strings, containing condition column
-#                         and 2 particular levels that should be compared
-#             - lfc: numeric, threshold for log2FoldChange
-#             - padj: numeric, thershold for p adjusted value
+##             - deseq2_object: DESeq(dds)
+##             - contrast: vector of strings, containing condition column
+##                         and 2 particular levels that should be compared
+##                         [vector]
+##             - lfc: threshold for log2FoldChange [numeric]
+##             - padj: threshold for p adjusted value [numeric]
 ##
 DE_analysis <- function(deseq2_object, contrast, lfc, padj) {
   # get shrunken results of pairwise comparison
@@ -46,11 +53,12 @@ DE_analysis <- function(deseq2_object, contrast, lfc, padj) {
 
 ## DESCRIPTION: function that makes Volcano plot
 ## PARAMETERS:
-#             - res_df: DE dataframe from pairwise comparison
-#             - y_val: string --> either padju or pval
-#             - title: string --> title of volcano plot
-#             - lfc: numeric, log2FoldChange threshold
-#             - padj: numeric, thershold for p adjusted value
+##             - res_df: DE dataframe from pairwise comparison [data frame]
+##             - y_val: set either padju or pval for y axis [string]
+##             - title: title of volcano plot [string]
+##             - lfc: log2FoldChange threshold [numeric]
+##             - padj: threshold for p adjusted value [numeric]
+## OUTPUT: plots a volcano plot of genes compared between two conditions
 ##
 make_volcano <- function(res_df, y_val, title, lfc, padju) {
   EnhancedVolcano(res_df,
@@ -80,48 +88,79 @@ make_volcano <- function(res_df, y_val, title, lfc, padju) {
 }
 
 
-## DESCRIPTION: function that plots heatmap for a geneselection
+
+## DESCRIPTION: mapping meta data to colors for annotation color in oncoplots
 ## PARAMETERS:
-#             - gene_selection: vecotr of genenames that will be plotted
-#             - vsd: transformed count data object from DESeq2
+##            - region_column: matadata df column were tumor region /conditions
+##                             are listed
+##            - patient_column: metadata df column were patient ids are listed
+##            - sex_column: metadata df column were the patients sex is listed
+##            - meth_column: metadata df column were the patients
+##                           MGMT methylation status is listed
+## OUTPUT: returns a list of lists with colors for each factor level
 ##
-make_heatmap <- function(gene_selection, vsd) {
-  # get counts df for gene selection
-  vsd_selection <- as.data.frame(assay(vsd)) %>%
-    filter(row.names(assay(vsd)) %in% gene_selection)
-  # scaling on rows, scale as default scales on columns,
-  # for rows we need transpose , and then transpose again to get original matrix
-  df_scale <- t(scale(t(vsd_selection)))
+create_annotation_color <- function(patient_column,
+                                    region_column,
+                                    sex_column,
+                                    meth_column) {
+  patient_scale <- colorRampPalette(c("#543005", "#f5f5f5", "#003c30"))
+  region_color <- c("#4B6C22", "#74add1", "#9e0142", "#fdae61")
+  sex_color <- c("#D5BD9E", "#565E71")
+  meth_color <- c("#4B6C22", "#74add1")
+
+  # get the number of uniqe patient ids to extract colors from color scale
+  sample_num <- length(unique(patient_column))
+  # get a specific color palette with num of patients
+  patient_color <- patient_scale(sample_num)
+  # set names to asign for each level the right color
+  names(patient_color) <- unique(patient_column)
+  names(region_color) <- sort(unique(region_column))
+  names(sex_color) <- sort(unique(sex_column))
+  names(meth_color) <- sort(unique(meth_column))
+  annotation_color <- list(
+    Tumor_region = region_color,
+    Patient_ID = patient_color,
+    Sex = sex_color,
+    MGMT_methylation = meth_color
+  )
+  return(annotation_color)
+}
+
+
+
+
+
+
+## DESCRIPTION: function that plots heatmap for a gene selection
+## PARAMETERS:
+##             - gene_selection: gene names that will be plotted [vector]
+##             - vsd: transformed count data object from DESeq2 [DESeq2_obj]
+##             - batch: column in metadata for which batch correction
+##                      should be performed [string]
+## OUTPUT: heatmap of selected genes with metadata column annotation
+make_heatmap <- function(gene_selection, vsd, batch, annotation_color) {
+  # get vst normalized counts df for gene selection
+  vsd_mat <- as.data.frame(assay(vsd)) %>%
+    dplyr::filter(row.names(assay(vsd)) %in% gene_selection)
+
+  if (!is.null(batch)) {
+    vsd_rm_batch <- limma::removeBatchEffect(vsd_mat, vsd$batch)
+    vsd_mat <- vsd_rm_batch
+  }
   # annotation for heatmap
-  anno_df <- data.frame(
+  annotation_df <- data.frame(
     "Tumor_region" = vsd@colData@listData$Tumor_region,
-    "Patient" = vsd@colData@listData$Patient_ID,
+    "Patient_ID" = vsd@colData@listData$Patient_ID,
     "Sex" = vsd@colData@listData$Sex,
     "MGMT_methylation" = vsd@colData@listData$MGMT
   )
-  # annotation colors
-  patient_color <- c(
-    "#543005", "#8c510a", "#A6691C", "#bf812d", "#CFA255", "#dfc27d",
-    "#f6e8c3", "#f5f5f5", "#c7eae5", "#80cdc1", "#5BB2A8", "#35978f",
-    "#1B7F77", "#01665e", "#003c30"
-  )
-  names(patient_color) <- unique(c(vsd@colData@listData$Patient_ID))
-  region_color <- c("#9e0142", "#fdae61", "#74add1", "#4B6C22")
-  names(region_color) <- c("NEC", "T1", "INF", "BEN")
-  sex_color <- c("#565E71", "#D5BD9E")
-  names(sex_color) <- c("M", "F")
-  meth_color <- c("#74add1", "#4B6C22", "#333A49")
-  names(meth_color) <- c("Unmethylated", "Methylated", "methylated")
-  anno_colors <- list(
-    Tumor_region = region_color,
-    Sex = sex_color,
-    MGMT_methylation = meth_color,
-    Patient = patient_color
-  )
+
   # draw heatmap
   pheatmap(
-    df_scale,
+    vsd_mat,
+    scale = "row", # genes = rows are z-score transformed
     show_rownames = FALSE,
-    annotation_col = anno_df,
-    annotation_colors = anno_colors)
+    annotation_col = annotation_df,
+    annotation_colors = annotation_color
+  )
 }
