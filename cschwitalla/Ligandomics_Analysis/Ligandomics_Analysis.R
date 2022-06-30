@@ -5,16 +5,20 @@
 ################################################################################
 ###                               Manual steps                               ###
 ################################################################################
-setwd("/Users/cschwitalla/Documents/Immunopeptidomics/")
-
-# inputdir <-
-# outputdir <-
-source("functions_ligandomics.R")
+# clear R enviroment
+rm(list = ls())
+## TODO: set workig dir to file source dir 
+# set directory fpr the input files
+input_dir <- ("/Users/cschwitalla/Documents/Immunopeptidomics/")
+# set directory for the output 
+output_dir <-  ("/Users/cschwitalla/Documents/Ligandomics_analysis/")
+# import functions for the analysis 
+source("/Users/cschwitalla/git/students/cschwitalla/Ligandomics_Analysis/functions_ligandomics.R")
 ################################################################################
 ###                             Load libraries                               ###
 ################################################################################
-required_Libs <- c("tidyr","readxl", "ggVennDiagram", "dplyr", "stringr", "tibble", 
-                   "ggplot2", "org.Hs.eg.db")
+required_Libs <- c("tidyr","readxl", "ggVennDiagram", "dplyr", "stringr",
+                   "tibble", "ggplot2", "org.Hs.eg.db")
 
 suppressMessages(invisible(lapply(required_Libs, library, character.only = T)))
 
@@ -22,225 +26,116 @@ suppressMessages(invisible(lapply(required_Libs, library, character.only = T)))
 ################################################################################
 ###                            Load Data                                     ###
 ################################################################################
+# load HLA-typing dataframe form Marcel Immunology------------------------------
+GB_HLA_types <- read_xlsx(paste0(input_dir, "HLA-Typisierung_GBM.xlsx"), col_names = TRUE)
+
+# get list of unique HLA types
+uniqe_HLA_types <- unique(c(as.matrix(GB_HLA_types[2:16, 2:7])))
+# rewrite HLA types that NetMHCpan can use them and save them as vector
+new_HLA_types <- rewrite_HLA_types(uniqe_HLA_types, as_string = FALSE)
+
+# Benign data Immunology -------------------------------------------------------
+# more specific
+# less hits
+benign_pep_I <- read.csv(paste0(input_dir, "newBenignmorespecific/Benign_class1.csv"),
+  header = FALSE,
+  sep = ","
+)[, 1:2]
+benign_pep_II <- read.csv(paste0(input_dir, "newBenignmorespecific/Benign_class2.csv"),
+  header = FALSE,
+  sep = ","
+)[, 1:2]
 
 
-# KNOWN BENIGN PEPTIDE DATA--------------------------------
-#HLA-typing form Marcel Immunology================================
-GB_HLA_types = read_xlsx("/Users/cschwitalla/Documents/Ligandomics_analysis/HLA-Typisierung_GBM.xlsx", col_names = TRUE)
-#get list of unique HLA types
-HLA_Types = GB_HLA_types$`HLA-Typing`
-
-HLA_Types_list = c()
-for(string in HLA_Types){
-  str1 = strsplit(string, ";", fixed = TRUE)
-  for(splits in str1){
-    HLA_Types_list = append(HLA_Types_list, splits)
-  }
-  
-}
-uniqe_HLA_types = unique(HLA_Types_list)
-uniqe_HLA_types = as.data.frame(uniqe_HLA_types[2:41])
-
-rewritten_hlatypes = c()
-for(i in uniqe_HLA_types$`uniqe_HLA_types[2:41]`){
-  str2 = strsplit(i, "*", fixed = TRUE)
-  
-  rewritten_hlatypes = append(rewritten_hlatypes, paste("HLA-", str2[[1]][1],str2[[1]][2], sep=""))
-}
-
-#write.table(rewritten_hlatypes, file= "/Users/cschwitalla/Documents/Ligandomics_analysis/Uniqe_HLA_Types.csv", sep = ",",quote = FALSE, row.names = FALSE, col.names = FALSE)
-
-hla_str = ""
-for(i in rewritten_hlatypes){
-  hla_str = paste(hla_str, i, ",", sep="")
-}
-#write(hla_str, file= "/Users/cschwitalla/Documents/Ligandomics_analysis/Uniqe_HLA_Types.csv")
-
-#Benign data Immunology -> from Marissa ==================================
-#more specific
-#less hits 
-Benigniome_I = read.csv("/Users/cschwitalla/Documents/Immunopeptidomics/newBenignmorespecific/Benign_class1.csv", header = FALSE, sep = ",", col.names = c("Peptide", "Acc", "V3", "Tissue", "V5"))
-Benigniome_II = read.csv("/Users/cschwitalla/Documents/Immunopeptidomics/newBenignmorespecific/Benign_class2.csv", header = FALSE, sep = ",", col.names = c("Peptide", "Acc", "V3", "Tissue", "V5","V6"))
+# TODO -------------------------------------------------------------------------
 #filter out all double mappers 
-Benigniome_I_unique_acc = Benigniome_I[- grep(";",Benigniome_I$Acc),]
-Benigniome_II_unique_acc = Benigniome_II[- grep(";", Benigniome_II$Acc),]
+#Benigniome_I_unique_acc = Benigniome_I[- grep(";",Benigniome_I$Acc),]
+#Benigniome_II_unique_acc = Benigniome_II[- grep(";", Benigniome_II$Acc),]
 
 
-#HLA Ligand Atlas =================================================
-HLA_Ligand_atlas_df = read.csv("./hla_2020.12/HLA_aggregated.tsv", header = TRUE, sep= "\t")
-HLA_Ligand_acc_df = read.csv("./hla_2020.12/HLA_protein_map.tsv", header = TRUE, sep = "\t")
-#get mapping frequencie for every peptide id 
-HLA_Ligand_mapperfreq = as.data.frame(table(HLA_Ligand_acc_df$peptide_sequence_id))
-# get peptide ids with freq 1
-Uniqe_mappers = HLA_Ligand_mapperfreq[which(HLA_Ligand_mapperfreq$Freq == 1),]
-# get all acc that are uniqe mappers
-HLA_Ligand_atlas_unique_acc = HLA_Ligand_acc_df %>% dplyr::filter(HLA_Ligand_acc_df$peptide_sequence_id  %in% Uniqe_mappers$Var1)
-#split in class I nd class II 
-HLA_Atlas_classI = HLA_Ligand_atlas_df[which((HLA_Ligand_atlas_df$hla_class == "HLA-I")|(HLA_Ligand_atlas_df$hla_class == "HLA-I+II")),]
-HLA_Atlas_classII = HLA_Ligand_atlas_df[which((HLA_Ligand_atlas_df$hla_class == "HLA-II")|(HLA_Ligand_atlas_df$hla_class == "HLA-I+II")),]
-# split protein acc in classI and classII 
-HLA_Atlas_uniqueacc_classI = HLA_Atlas_classI %>% dplyr::filter(HLA_Atlas_classI$peptide_sequence_id %in% HLA_Ligand_atlas_unique_acc$peptide_sequence_id)
-HLA_Atlas_uniqueacc_classII  = HLA_Atlas_classII %>% dplyr::filter(HLA_Atlas_classII$peptide_sequence_id %in%HLA_Ligand_atlas_unique_acc$peptide_sequence_id)
+#HLA-Ligand Atlas data ---------------------------------------------------------
+# read in dataframes from HLA ligand antlas
+HLA_ligand_atlas_pep <- read.csv(paste0(input_dir, "hla_2020.12/HLA_aggregated.tsv"),
+  header = TRUE,
+  sep = "\t"
+)
+HLA_ligand_atlas_acc <- read.csv(paste0(input_dir, "hla_2020.12/HLA_protein_map.tsv"),
+  header = TRUE,
+  sep = "\t"
+)
+# aggregate HLA ligand atlas dataframe bevor merging 
+HLA_ligand_atlas_acc <- HLA_ligand_atlas_acc %>%
+  group_by(peptide_sequence_id ) %>% summarise(acc = toString(uniprot_id))
 
-HLA_Atlas_I_uniq_acc = HLA_Ligand_atlas_unique_acc %>% dplyr::filter(HLA_Ligand_atlas_unique_acc$peptide_sequence_id %in% HLA_Atlas_uniqueacc_classI$peptide_sequence_id)
-HLA_Atlas_II_uniq_acc = HLA_Ligand_atlas_unique_acc %>% dplyr::filter(HLA_Ligand_atlas_unique_acc$peptide_sequence_id %in% HLA_Atlas_uniqueacc_classII$peptide_sequence_id)
+# merge dataframes by peptide sequence id to add protein accession numbers to the dataframe
+HLA_atlas_data <- merge(HLA_ligand_atlas_pep, HLA_ligand_atlas_acc, by = "peptide_sequence_id")
+# split the ligand atlas according to the hla class ( 1 or 2 )
+HLA_atlas_data <- split(HLA_atlas_data, HLA_atlas_data$hla_class)
 
-# add source protein acc to hla ligand atlas df 
-HLA_Atlas_I_uniqaccs = merge(HLA_Atlas_uniqueacc_classI, HLA_Atlas_I_uniq_acc, by= "peptide_sequence_id")
-HLA_Atlas_II_uniqaccs = merge(HLA_Atlas_uniqueacc_classII, HLA_Atlas_II_uniq_acc, by= "peptide_sequence_id")
+# TODO maybe--------------------------------------------------------------------
+# #get mapping frequencie for every peptide id 
+# HLA_Ligand_mapperfreq = as.data.frame(table(HLA_Ligand_acc_df$peptide_sequence_id))
+# # get peptide ids with freq 1
+# Uniqe_mappers = HLA_Ligand_mapperfreq[which(HLA_Ligand_mapperfreq$Freq == 1),]
+# # get all acc that are uniqe mappers
+# HLA_Ligand_atlas_unique_acc = HLA_Ligand_acc_df %>% dplyr::filter(HLA_Ligand_acc_df$peptide_sequence_id  %in% Uniqe_mappers$Var1)
+# #split in class I nd class II 
+# HLA_Atlas_classI = HLA_Ligand_atlas_df[which((HLA_Ligand_atlas_df$hla_class == "HLA-I")|(HLA_Ligand_atlas_df$hla_class == "HLA-I+II")),]
+# HLA_Atlas_classII = HLA_Ligand_atlas_df[which((HLA_Ligand_atlas_df$hla_class == "HLA-II")|(HLA_Ligand_atlas_df$hla_class == "HLA-I+II")),]
+# # split protein acc in classI and classII 
+# HLA_Atlas_uniqueacc_classI = HLA_Atlas_classI %>% dplyr::filter(HLA_Atlas_classI$peptide_sequence_id %in% HLA_Ligand_atlas_unique_acc$peptide_sequence_id)
+# HLA_Atlas_uniqueacc_classII  = HLA_Atlas_classII %>% dplyr::filter(HLA_Atlas_classII$peptide_sequence_id %in%HLA_Ligand_atlas_unique_acc$peptide_sequence_id)
+# 
+# HLA_Atlas_I_uniq_acc = HLA_Ligand_atlas_unique_acc %>% dplyr::filter(HLA_Ligand_atlas_unique_acc$peptide_sequence_id %in% HLA_Atlas_uniqueacc_classI$peptide_sequence_id)
+# HLA_Atlas_II_uniq_acc = HLA_Ligand_atlas_unique_acc %>% dplyr::filter(HLA_Ligand_atlas_unique_acc$peptide_sequence_id %in% HLA_Atlas_uniqueacc_classII$peptide_sequence_id)
+# 
+# # add source protein acc to hla ligand atlas df 
+# HLA_Atlas_I_uniqaccs = merge(HLA_Atlas_uniqueacc_classI, HLA_Atlas_I_uniq_acc, by= "peptide_sequence_id")
+# HLA_Atlas_II_uniqaccs = merge(HLA_Atlas_uniqueacc_classII, HLA_Atlas_II_uniq_acc, by= "peptide_sequence_id")
 
-#TUMOR REGION LIGANDOMICS DATA--------------------------------------
 
-#file paths
-classI_filedir = "./ClassI"
-classII_filedir = "./ClassII"
-
-#filenames with path 
-files_cI <- dir(classI_filedir, recursive= TRUE, pattern = ".csv", full.names = TRUE)
-files_cII <- dir(classII_filedir, recursive = TRUE, pattern = ".csv", full.names = TRUE)
-
-#Creat dataframes for Class I and II Ligandomics data===========================
-
-#function to read in ligandomics data from csv files 
-createDataFrame <- function(filelist){
-  #create empty classI dataframe 
-  file_count = 0
-  df <- data.frame(Patient_ID = character(),
-                   Tumor_region = character(),
-                   Sequence = character(),
-                   Accessions = character())
-  #loop over all files
-  for(file in filelist){
-    file_count = file_count +1
-    tempfile = read.csv(file, header = TRUE, sep = "\t")
-    patientid = strsplit(strsplit(file, split = "/")[[1]][3], split = "_")[[1]][1]
-    tregion = strsplit(strsplit(strsplit(file, split = "/")[[1]][3], split = "_")[[1]][2], split= ".", fixed =  TRUE)[[1]][1]
-    seq = tempfile$sequence
-    acc = tempfile$accessions
-    # temporaray df 
-    temp_df = data.frame(Patient_ID = rep(patientid, times = length(seq)),
-                         Sample_num = rep(paste("Sample", as.character(file_count), sep= "_"), times = length(seq) ),
-                         Tumor_region = rep(tregion, times = length(seq)),
-                         Sequence = seq,
-                         Accessions = acc)
-    # append to output df 
-    df<- rbind(df, temp_df)
-  }
-  df$Sequence = str_replace_all(df$Sequence,"\\(Oxidation\\)", "") #get rid of the (Oxidation) string in sequences 
-  df$Sequence = toupper(df$Sequence) # sequence all upper case
-  return(df)
-}
+# TUMOR REGION LIGANDOMICS DATA-------------------------------------------------
+# get all filenames with path 
+files_cI <- dir(paste0(input_dir, "ClassI"),
+  recursive = TRUE,
+  pattern = ".csv",
+  full.names = TRUE
+)
+files_cII <- dir(paste0(input_dir, "ClassII"),
+  recursive = TRUE,
+  pattern = ".csv",
+  full.names = TRUE
+)
 
 #read in data 
 classI_df = createDataFrame(files_cI)
 classII_df = createDataFrame(files_cII)
 
+# DATA PREPERATION -------------------------------------------------------------
+# combine benign data 
 
+combi_benign_pep_I <- c(HLA_atlas_data$`HLA-I`$peptide_sequence,
+                        HLA_atlas_data$`HLA-I+II`$peptide_sequence,
+                        benign_pep_I$V1)
+combi_benign_pep_II <- c(HLA_atlas_data$`HLA-II`$peptide_sequence,
+                         HLA_atlas_data$`HLA-I+II`$peptide_sequence,
+                         benign_pep_II$V1)
+# filter my datasets so that the known benign peptides frombenign pep db are not 
+# there anymore 
+classI_df <- subset(classI_df, !(Sequence %in% combi_benign_pep_I))
+classII_df <- subset(classII_df, !(Sequence %in% combi_benign_pep_II))
 
-#DATA PREPERATION ----------------------------------------------
+    # dataset that hase only peptides predicted to originate only from one protein
+    # not multiple  
+classI_df = classI_df[ -grep(";", classI_df$Accessions), ]
+classII_df = classII_df[ -grep(";", classII_df$Accessions), ]
 
-# exclude all intersections with bening db ======================
-classI_filterd_df = subset(classI_df, !(Sequence %in% Benigniome_I$Peptide) & !(Sequence%in% HLA_Atlas_classI$peptide_sequence))
-classII_filterd_df = subset(classII_df, !(Sequence %in% Benigniome_II$Peptide) & !(Sequence %in% HLA_Atlas_classII$peptide_sequence))
-
-
-#Exclude peptides that mapp to multiple source proteins ====================================
-#Benign filtered data
-classI_filterd_uniqe_mappers = classI_filterd_df[- grep(";", classI_filterd_df$Accessions),]
-classII_filterd_uniqe_mappers = classII_filterd_df[- grep(";", classII_filterd_df$Accessions),]
-#Unfiltered data
-classI_uniqe_mappers = classI_df[- grep(";", classI_df$Accessions),]
-classII_uniqe_mappers = classII_df[- grep(";", classII_df$Accessions),]
-
-#Get Tumorregion specific dataframes =======================================
-#Unfilterd#############################
-#multi mapper 
-NEC_classI = classI_df[classI_df$Tumor_region == "NEC",]
-NEC_classII= classII_df[classII_df$Tumor_region == "NEC",]
-
-T1_classI = classI_df[classI_df$Tumor_region == "T1", ]
-T1_classII = classII_df[classII_df$Tumor_region == "T1", ]
-
-INF_classI = classI_df[classI_df$Tumor_region == "INF", ]
-INF_classII = classII_df[classII_df$Tumor_region == "INF", ]
-
-BEN_classI = classI_df[classI_df$Tumor_region == "BEN", ]
-BEN_classII = classII_df[classII_df$Tumor_region == "BEN", ]
-
-#unique mappers
-NEC_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "NEC",]
-NEC_II_uniqe_acc = classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "NEC",]
-
-T1_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "T1", ]
-T1_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "T1", ]
-
-INF_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "INF", ]
-INF_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "INF", ]
-
-BEN_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "BEN", ]
-BEN_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "BEN", ]
-
-
-
-#Benigniome filtered #################################
-#with multi mappers
-NEC_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "NEC",]
-NEC_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "NEC",]
-
-T1_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "T1", ]
-T1_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "T1", ]
-
-INF_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "INF", ]
-INF_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "INF", ]
-
-BEN_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "BEN", ]
-BEN_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "BEN", ]
-
-#wunique mappers
-NEC_I_uniqe_acc_filterd = classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "NEC",]
-NEC_II_uniqe_acc_filterd = classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "NEC",]
-
-T1_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "T1", ]
-T1_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "T1", ]
-
-INF_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "INF", ]
-INF_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "INF", ]
-
-BEN_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "BEN", ]
-BEN_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "BEN", ]
-
-Tumor_I_uniqe_acc_filterd = classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region != "BEN", ]
-Tumor_II_uniqe_acc_filterd = classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region != "BEN", ]
-
-#Get Tumorregion exclusive dataframes ==================================
-
-#Class I ###################################
-# multi mappers 
-NEC_exclusive_classI_filterd  = subset(NEC_classI_filterd , !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
-T1_exclusive_classI_filterd = subset(T1_classI_filterd, !(Sequence %in% NEC_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
-INF_exclusive_classI_filterd = subset(INF_classI_filterd, !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% NEC_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
-BEN_exclusive_classI_filterd = subset(BEN_classI_filterd, !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% NEC_classI_filterd$Sequence))
-
-#wunique mappers 
-NEC_exclusive_I_uniqeAcc_filterd = subset(NEC_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc$Sequence))
-T1_exclusive_I_uniqeAcc_filterd = subset(T1_I_uniqe_acc_filterd, !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc_filterd$Sequence))
-INF_exclusive_I_uniqeAcc_filterd = subset(INF_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc_filterd$Sequence))
-BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence))
-
-
-#Class II #######################################
-#multi mappers
-NEC_exclusive_classII_filterd = subset(NEC_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
-T1_exclusive_classII_filterd = subset(T1_classII_filterd, !(Sequence %in% NEC_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
-INF_exclusive_classII_filterd = subset(INF_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% NEC_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
-BEN_exclusive_classII_filterd = subset(BEN_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% NEC_classII_filterd$Sequence))
-
-
-#unique mappers
-NEC_exclusive_II_uniqeAcc_filterd = subset(NEC_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
-T1_exclusive_II_uniqeAcc_filterd = subset(T1_II_uniqe_acc_filterd, !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
-INF_exclusive_II_uniqeAcc_filterd = subset(INF_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
-BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence))
+    
+    #  create than dataframes that are filterd+uniqe origin that are region specific
+region_specific_I <- split(classI_df, classI_df$Tumor_region)
+region_specific_II <- split(classI_df,classII_df$Tumor_region)
+    #  create than dataframe that are filterd+unique origin + region exclusive peptides
+    #  save all data frames
 
 
 
@@ -248,7 +143,127 @@ BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_II_uniqe_acc_filterd, !(Sequence %
 
 
 
-#PLOTS---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+# 
+# # exclude all intersections with bening db ======================
+# classI_filterd_df = subset(classI_df, !(Sequence %in% Benigniome_I$Peptide) & !(Sequence%in% HLA_Atlas_classI$peptide_sequence))
+# classII_filterd_df = subset(classII_df, !(Sequence %in% Benigniome_II$Peptide) & !(Sequence %in% HLA_Atlas_classII$peptide_sequence))
+# 
+# 
+# #Exclude peptides that mapp to multiple source proteins ====================================
+# #Benign filtered data
+# classI_filterd_uniqe_mappers = classI_filterd_df[- grep(";", classI_filterd_df$Accessions),]
+# classII_filterd_uniqe_mappers = classII_filterd_df[- grep(";", classII_filterd_df$Accessions),]
+# #Unfiltered data
+# classI_uniqe_mappers = classI_df[- grep(";", classI_df$Accessions),]
+# classII_uniqe_mappers = classII_df[- grep(";", classII_df$Accessions),]
+# 
+# #Get Tumorregion specific dataframes =======================================
+# #Unfilterd#############################
+# #multi mapper 
+# NEC_classI = classI_df[classI_df$Tumor_region == "NEC",]
+# NEC_classII= classII_df[classII_df$Tumor_region == "NEC",]
+# 
+# T1_classI = classI_df[classI_df$Tumor_region == "T1", ]
+# T1_classII = classII_df[classII_df$Tumor_region == "T1", ]
+# 
+# INF_classI = classI_df[classI_df$Tumor_region == "INF", ]
+# INF_classII = classII_df[classII_df$Tumor_region == "INF", ]
+# 
+# BEN_classI = classI_df[classI_df$Tumor_region == "BEN", ]
+# BEN_classII = classII_df[classII_df$Tumor_region == "BEN", ]
+# 
+# #unique mappers
+# NEC_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "NEC",]
+# NEC_II_uniqe_acc = classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "NEC",]
+# 
+# T1_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "T1", ]
+# T1_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "T1", ]
+# 
+# INF_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "INF", ]
+# INF_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "INF", ]
+# 
+# BEN_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "BEN", ]
+# BEN_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "BEN", ]
+# 
+# 
+# 
+# #Benigniome filtered #################################
+# #with multi mappers
+# NEC_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "NEC",]
+# NEC_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "NEC",]
+# 
+# T1_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "T1", ]
+# T1_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "T1", ]
+# 
+# INF_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "INF", ]
+# INF_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "INF", ]
+# 
+# BEN_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "BEN", ]
+# BEN_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "BEN", ]
+# 
+# #wunique mappers
+# NEC_I_uniqe_acc_filterd = classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "NEC",]
+# NEC_II_uniqe_acc_filterd = classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "NEC",]
+# 
+# T1_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "T1", ]
+# T1_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "T1", ]
+# 
+# INF_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "INF", ]
+# INF_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "INF", ]
+# 
+# BEN_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "BEN", ]
+# BEN_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "BEN", ]
+# 
+# Tumor_I_uniqe_acc_filterd = classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region != "BEN", ]
+# Tumor_II_uniqe_acc_filterd = classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region != "BEN", ]
+# 
+# #Get Tumorregion exclusive dataframes ==================================
+# 
+# #Class I ###################################
+# # multi mappers 
+# NEC_exclusive_classI_filterd  = subset(NEC_classI_filterd , !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
+# T1_exclusive_classI_filterd = subset(T1_classI_filterd, !(Sequence %in% NEC_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
+# INF_exclusive_classI_filterd = subset(INF_classI_filterd, !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% NEC_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
+# BEN_exclusive_classI_filterd = subset(BEN_classI_filterd, !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% NEC_classI_filterd$Sequence))
+# 
+# #wunique mappers 
+# NEC_exclusive_I_uniqeAcc_filterd = subset(NEC_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc$Sequence))
+# T1_exclusive_I_uniqeAcc_filterd = subset(T1_I_uniqe_acc_filterd, !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc_filterd$Sequence))
+# INF_exclusive_I_uniqeAcc_filterd = subset(INF_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc_filterd$Sequence))
+# BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence))
+# 
+# 
+# #Class II #######################################
+# #multi mappers
+# NEC_exclusive_classII_filterd = subset(NEC_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
+# T1_exclusive_classII_filterd = subset(T1_classII_filterd, !(Sequence %in% NEC_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
+# INF_exclusive_classII_filterd = subset(INF_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% NEC_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
+# BEN_exclusive_classII_filterd = subset(BEN_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% NEC_classII_filterd$Sequence))
+# 
+# 
+# #unique mappers
+# NEC_exclusive_II_uniqeAcc_filterd = subset(NEC_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
+# T1_exclusive_II_uniqeAcc_filterd = subset(T1_II_uniqe_acc_filterd, !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
+# INF_exclusive_II_uniqeAcc_filterd = subset(INF_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
+# BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence))
+# 
+# 
+# 
+# 
+# 
+# 
+
+#PLOTS--------------------------------------------------------------------------
 
 #length distribution CLASS I + II ================
 
