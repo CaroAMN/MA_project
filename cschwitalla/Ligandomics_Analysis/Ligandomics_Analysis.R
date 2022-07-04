@@ -47,12 +47,6 @@ benign_pep_II <- read.csv(paste0(input_dir, "newBenignmorespecific/Benign_class2
 )[, 1:2]
 
 
-# TODO -------------------------------------------------------------------------
-#filter out all double mappers 
-#Benigniome_I_unique_acc = Benigniome_I[- grep(";",Benigniome_I$Acc),]
-#Benigniome_II_unique_acc = Benigniome_II[- grep(";", Benigniome_II$Acc),]
-
-
 #HLA-Ligand Atlas data ---------------------------------------------------------
 # read in dataframes from HLA ligand antlas
 HLA_ligand_atlas_pep <- read.csv(paste0(input_dir, "hla_2020.12/HLA_aggregated.tsv"),
@@ -108,8 +102,8 @@ files_cII <- dir(paste0(input_dir, "ClassII"),
 )
 
 #read in data 
-classI_df = createDataFrame(files_cI)
-classII_df = createDataFrame(files_cII)
+classI_df = create_data_frame(files_cI)
+classII_df = create_data_frame(files_cII)
 
 # DATA PREPERATION -------------------------------------------------------------
 # combine benign data 
@@ -125,145 +119,42 @@ combi_benign_pep_II <- c(HLA_atlas_data$`HLA-II`$peptide_sequence,
 classI_df <- subset(classI_df, !(Sequence %in% combi_benign_pep_I))
 classII_df <- subset(classII_df, !(Sequence %in% combi_benign_pep_II))
 
-    # dataset that hase only peptides predicted to originate only from one protein
-    # not multiple  
+# dataset that hase only peptides predicted to originate only from one protein
+# not multiple  
 classI_df = classI_df[ -grep(";", classI_df$Accessions), ]
 classII_df = classII_df[ -grep(";", classII_df$Accessions), ]
 
-    
-    #  create than dataframes that are filterd+uniqe origin that are region specific
+# create than dataframes that are filterd+uniqe origin that are region specific
 region_specific_I <- split(classI_df, classI_df$Tumor_region)
-region_specific_II <- split(classI_df,classII_df$Tumor_region)
-    #  create than dataframe that are filterd+unique origin + region exclusive peptides
-    #  save all data frames
+region_specific_II <- split(classII_df,classII_df$Tumor_region)
+   
+# TODO: save dataframes to tsv
+
+################################################################################
+##                               Analysis                                     ##
+################################################################################
 
 
+# venn diagram -----------------------------------------------------------------
+# extract venn diagrams region exclusive peptides than 
+set_I <- setNames(vector("list", length = length(names(region_specific_I))),
+                  c(names(region_specific_I)))
+
+set_II <- setNames(vector("list", length = length(names(region_specific_II))),
+                  c(names(region_specific_II)))
+
+for (i in region_specific_I) {
+  set_I[i$Tumor_region[1]] <- list(i$Sequence)
+}
+for (i in region_specific_II) {
+  set_II[i$Tumor_region[1]] <- list(i$Sequence)
+}
+
+venn_data_I <- plot_custom_venn(set_I, "HLA class I Peptides")
+venn_data_II <- plot_custom_venn(set_II, "HLA class II Peptides")
+#test2@region$item
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 
-# # exclude all intersections with bening db ======================
-# classI_filterd_df = subset(classI_df, !(Sequence %in% Benigniome_I$Peptide) & !(Sequence%in% HLA_Atlas_classI$peptide_sequence))
-# classII_filterd_df = subset(classII_df, !(Sequence %in% Benigniome_II$Peptide) & !(Sequence %in% HLA_Atlas_classII$peptide_sequence))
-# 
-# 
-# #Exclude peptides that mapp to multiple source proteins ====================================
-# #Benign filtered data
-# classI_filterd_uniqe_mappers = classI_filterd_df[- grep(";", classI_filterd_df$Accessions),]
-# classII_filterd_uniqe_mappers = classII_filterd_df[- grep(";", classII_filterd_df$Accessions),]
-# #Unfiltered data
-# classI_uniqe_mappers = classI_df[- grep(";", classI_df$Accessions),]
-# classII_uniqe_mappers = classII_df[- grep(";", classII_df$Accessions),]
-# 
-# #Get Tumorregion specific dataframes =======================================
-# #Unfilterd#############################
-# #multi mapper 
-# NEC_classI = classI_df[classI_df$Tumor_region == "NEC",]
-# NEC_classII= classII_df[classII_df$Tumor_region == "NEC",]
-# 
-# T1_classI = classI_df[classI_df$Tumor_region == "T1", ]
-# T1_classII = classII_df[classII_df$Tumor_region == "T1", ]
-# 
-# INF_classI = classI_df[classI_df$Tumor_region == "INF", ]
-# INF_classII = classII_df[classII_df$Tumor_region == "INF", ]
-# 
-# BEN_classI = classI_df[classI_df$Tumor_region == "BEN", ]
-# BEN_classII = classII_df[classII_df$Tumor_region == "BEN", ]
-# 
-# #unique mappers
-# NEC_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "NEC",]
-# NEC_II_uniqe_acc = classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "NEC",]
-# 
-# T1_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "T1", ]
-# T1_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "T1", ]
-# 
-# INF_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "INF", ]
-# INF_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "INF", ]
-# 
-# BEN_I_uniqe_acc= classI_uniqe_mappers[classI_uniqe_mappers$Tumor_region == "BEN", ]
-# BEN_II_uniqe_acc= classII_uniqe_mappers[classII_uniqe_mappers$Tumor_region == "BEN", ]
-# 
-# 
-# 
-# #Benigniome filtered #################################
-# #with multi mappers
-# NEC_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "NEC",]
-# NEC_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "NEC",]
-# 
-# T1_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "T1", ]
-# T1_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "T1", ]
-# 
-# INF_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "INF", ]
-# INF_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "INF", ]
-# 
-# BEN_classI_filterd = classI_filterd_df[classI_filterd_df$Tumor_region == "BEN", ]
-# BEN_classII_filterd = classII_filterd_df[classII_filterd_df$Tumor_region == "BEN", ]
-# 
-# #wunique mappers
-# NEC_I_uniqe_acc_filterd = classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "NEC",]
-# NEC_II_uniqe_acc_filterd = classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "NEC",]
-# 
-# T1_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "T1", ]
-# T1_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "T1", ]
-# 
-# INF_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "INF", ]
-# INF_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "INF", ]
-# 
-# BEN_I_uniqe_acc_filterd= classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region == "BEN", ]
-# BEN_II_uniqe_acc_filterd= classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region == "BEN", ]
-# 
-# Tumor_I_uniqe_acc_filterd = classI_filterd_uniqe_mappers[classI_filterd_uniqe_mappers$Tumor_region != "BEN", ]
-# Tumor_II_uniqe_acc_filterd = classII_filterd_uniqe_mappers[classII_filterd_uniqe_mappers$Tumor_region != "BEN", ]
-# 
-# #Get Tumorregion exclusive dataframes ==================================
-# 
-# #Class I ###################################
-# # multi mappers 
-# NEC_exclusive_classI_filterd  = subset(NEC_classI_filterd , !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
-# T1_exclusive_classI_filterd = subset(T1_classI_filterd, !(Sequence %in% NEC_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
-# INF_exclusive_classI_filterd = subset(INF_classI_filterd, !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% NEC_classI_filterd$Sequence) & !(Sequence %in% BEN_classI_filterd$Sequence))
-# BEN_exclusive_classI_filterd = subset(BEN_classI_filterd, !(Sequence %in% T1_classI_filterd$Sequence) & !(Sequence %in% INF_classI_filterd$Sequence) & !(Sequence %in% NEC_classI_filterd$Sequence))
-# 
-# #wunique mappers 
-# NEC_exclusive_I_uniqeAcc_filterd = subset(NEC_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc$Sequence))
-# T1_exclusive_I_uniqeAcc_filterd = subset(T1_I_uniqe_acc_filterd, !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc_filterd$Sequence))
-# INF_exclusive_I_uniqeAcc_filterd = subset(INF_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_I_uniqe_acc_filterd$Sequence))
-# BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_I_uniqe_acc_filterd, !(Sequence %in% T1_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_I_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_I_uniqe_acc_filterd$Sequence))
-# 
-# 
-# #Class II #######################################
-# #multi mappers
-# NEC_exclusive_classII_filterd = subset(NEC_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
-# T1_exclusive_classII_filterd = subset(T1_classII_filterd, !(Sequence %in% NEC_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
-# INF_exclusive_classII_filterd = subset(INF_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% NEC_classII_filterd$Sequence) & !(Sequence %in% BEN_classII_filterd$Sequence))
-# BEN_exclusive_classII_filterd = subset(BEN_classII_filterd, !(Sequence %in% T1_classII_filterd$Sequence) & !(Sequence %in% INF_classII_filterd$Sequence) & !(Sequence %in% NEC_classII_filterd$Sequence))
-# 
-# 
-# #unique mappers
-# NEC_exclusive_II_uniqeAcc_filterd = subset(NEC_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
-# T1_exclusive_II_uniqeAcc_filterd = subset(T1_II_uniqe_acc_filterd, !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
-# INF_exclusive_II_uniqeAcc_filterd = subset(INF_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% BEN_II_uniqe_acc_filterd$Sequence))
-# BEN_exclusive_I_uniqeAcc_filterd = subset(BEN_II_uniqe_acc_filterd, !(Sequence %in% T1_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% INF_II_uniqe_acc_filterd$Sequence) & !(Sequence %in% NEC_II_uniqe_acc_filterd$Sequence))
-# 
-# 
-# 
-# 
-# 
-# 
-
-#PLOTS--------------------------------------------------------------------------
 
 #length distribution CLASS I + II ================
 
@@ -319,6 +210,8 @@ ggplot(counts_classII ,aes(x = len, y = x, group = Tumor_region, color = Tumor_r
   theme( axis.text.x = element_text(angle = 45, vjust = 1.2, hjust=1.2))
 
 display.brewer.pal(n = 4,name = "Paired")
+
+
 
 
 #saturation analysis ===================
@@ -389,373 +282,35 @@ ggplot(sat_classII,aes(x = sat_classII$num_samples, y = fit_sat_classII)) +
 
 
 
-#VENN DIAGRAMS---------------------------------------------
 
-#data sets for Venn diagrams =============================
-#Unfiltered Sequences##################################
-# class 1
-BenDB_classI = c(Benigniome_I$Peptide, HLA_Atlas_classI$peptide_sequence)
-seq_I = list(NEC = NEC_classI$Sequence, T1 =  T1_classI$Sequence, INF = INF_classI$Sequence, BEN = BEN_classI$Sequence, BENDB = BenDB_classI)
-#class 2
-BenDB_classII = c(Benigniome_II$Peptide, HLA_Atlas_classII$peptide_sequence)
-seq_II = list(NEC = NEC_classII$Sequence, T1 =  T1_classII$Sequence, INF = INF_classII$Sequence, BEN = BEN_classII$Sequence, BENDB = BenDB_classII)
+# Waterfall plots---------------------------------------------------------------
+# TODO: plot maybe venn into watferall 
+# TODO: adjust color for tumor regions
+# TODO: save each plot as pdf 
 
-#Unfiltered unique mapper source protein accessions#############################
-#class 1
-setI_acc = list(NEC = getProteinAcc_uniqemappers(NEC_I_uniqe_acc$Accessions), T1 = getProteinAcc_uniqemappers(T1_I_uniqe_acc$Accessions), INF = getProteinAcc_uniqemappers(INF_I_uniqe_acc$Accessions), BEN = getProteinAcc_uniqemappers(BEN_I_uniqe_acc$Accessions), BENDB = c(Benigniome_I_unique_acc$Acc,HLA_Atlas_I_uniqaccs$uniprot_id)) #protein accessions
-setI_seq = list(NEC = NEC_I_uniqe_acc$Sequence, T1 = T1_I_uniqe_acc$Sequence, INF = INF_I_uniqe_acc$Sequence, BEN = BEN_I_uniqe_acc$Sequence, BENDB = c(Benigniome_I_unique_acc$Peptide, HLA_Atlas_I_uniqaccs$peptide_sequence)) #peptide sequences from uniqe mappers
+# for loop mit allen combination wie in rna seq analysis 
 
-#class 2
-setII_acc = list(NEC = getProteinAcc(NEC_II_uniqe_acc$Accessions), T1 = getProteinAcc(T1_II_uniqe_acc$Accessions), INF = getProteinAcc(INF_II_uniqe_acc$Accessions), BEN = getProteinAcc(BEN_II_uniqe_acc$Accessions), BENDB = c(Benigniome_II_unique_acc$Acc,HLA_Atlas_II_uniqaccs$uniprot_id)) #protein accessions
-setII_seq = list(NEC = NEC_II_uniqe_acc$Sequence, T1 = T1_II_uniqe_acc$Sequence, INF = INF_II_uniqe_acc$Sequence, BEN = BEN_II_uniqe_acc$Sequence, BENDB = c(Benigniome_II_unique_acc$Peptide, HLA_Atlas_II_uniqaccs$peptide_sequence))#peptide sequences from uniqe mappers
-
-
-#Draw Venn diagram ========================================
-
-#class I acc and peptide sequences with uniqe protein mappers
-ggVennDiagram(setI_acc, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey", BENDB = "grey")) + ggtitle("Class I source protein accessions")
-ggVennDiagram(setI_seq, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey", BENDB = "grey")) + ggtitle("Class I peptide sequences")
-
-#class II acc and peptide sequences with uniqe protein mappers
-ggVennDiagram(setII_acc, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey", BENDB = "grey")) + ggtitle("Class II source protein accessions")
-ggVennDiagram(setII_seq, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey", BENDB = "grey")) + ggtitle("Class II peptide sequences")
-
-
-# class I and II peptide sequences with multi protein mappers
-ggVennDiagram(seq_I, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey", BENDB = "grey")) + ggtitle("Class I peptide sequences; including multimappers")
-ggVennDiagram(seq_II, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey", BENDB = "grey")) + ggtitle("Class II peptide sequences; including multimappers")
-
-set_filter = list(NEC = NEC_I_uniqe_acc_filterd$Accessions, T1 = T1_I_uniqe_acc_filterd$Accessions, INF = INF_I_uniqe_acc_filterd$Accessions, BEN = Benigniome_I_unique_acc$Acc, BENDB = c(Benigniome_I_unique_acc$Acc,HLA_Atlas_I_uniqaccs$uniprot_id))
-setII_filter = list(NEC = NEC_II_uniqe_acc_filterd$Accessions, T1 = T1_II_uniqe_acc_filterd$Accessions, INF = INF_II_uniqe_acc_filterd$Accessions, BEN = Benigniome_II_unique_acc$Acc, BENDB = c(Benigniome_II_unique_acc$Acc,HLA_Atlas_II_uniqaccs$uniprot_id))
-
-ggVennDiagram(set_filter, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class I protein acc, beningiome filterd")
-ggVennDiagram(setII_filter, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class II protein acc, beningiome filterd")
-
-
-
-set_filter_seq = list(NEC = NEC_I_uniqe_acc_filterd$Sequence, T1 = T1_I_uniqe_acc_filterd$Sequence, INF = INF_I_uniqe_acc_filterd$Sequence, BEN = Benigniome_I_unique_acc$Peptide, BENDB = c(Benigniome_I_unique_acc$Acc,HLA_Atlas_I_uniqaccs$peptide_sequence))
-setII_filter_seq = list(NEC = NEC_II_uniqe_acc_filterd$Sequence, T1 = T1_II_uniqe_acc_filterd$Sequence, INF = INF_II_uniqe_acc_filterd$Sequence, BEN = Benigniome_II_unique_acc$Peptide, BENDB = c(Benigniome_II_unique_acc$Acc,HLA_Atlas_II_uniqaccs$peptide_sequence))
-
-
-ggVennDiagram(set_filter_seq, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class I peptides")
-ggVennDiagram(setII_filter_seq, label_alpha = 0, label = "count", label_size = 3) + scale_fill_gradient(low = "papayawhip", high = "paleturquoise4")+ scale_color_manual(values = c(NEC = "grey", T1 = "grey", INF = "grey", BEN = "grey")) + ggtitle("Class II peptides")
-
-
-
-#WATERFALL PLOTS -----------------------------------------------------------------
-
-# FUNCTIONS ======================================
-#plots with protein acc
-makeWaterfallDF_acc <- function(df1, df2) {
+for (com in apply(combn(names(region_specific_I),2),2, paste, collapse = "_vs_")) {
   
-  #unique acc per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample 
-  df1 = df1 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  df2 = df2 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  
-  # union of unique acc --> x achse 
-  uniq_acc <- unique(c(df1$Accessions, df2$Accessions))
-  
-  # neues df 
-  waterfall_df = data.frame(uniq_acc)
-  # ratio of peptide occurences für df1 und df2
-  waterfall_df$set1 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df1$Accessions)), 0,
-                (length(matchAll(acc, df1$Accessions))/length(unique(df1$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set2 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df2$Accessions)), 0,
-                (length(matchAll(acc, df2$Accessions))/length(unique(df2$Patient_ID)))*100))
-  })
-  
-  waterfall_df$Total = sapply(uniq_acc, function(acc){
-    (length(matchAll(acc, c(df1$Accessions, df2$Accessions)))/
-       length(c(unique(df1$Patient_ID), unique(df2$Patient_ID))))*100
-  })
-  
-  # filtern des df 
-  exclusive_1 = waterfall_df[which(waterfall_df$set2 == 0),]
-  exclusive_2 = waterfall_df[which(waterfall_df$set1 == 0),]
-  #ordnen
-  exclusive_1 = exclusive_1[order(exclusive_1$set1, decreasing = T),]
-  exclusive_2 = exclusive_2[order(exclusive_2$set2),]
-  
-  other = waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0),]
-  other = other[order(other$set1, other$set2),]
-  #create new waterfall df 
-  waterfall_df = rbind(exclusive_1, other, exclusive_2)
-  return(waterfall_df)
-}
-plotWaterfall_acc <- function(waterfall_df, name1, name2, title) {
-  #color_legend = c( name1 = "salmon1", name2= "steelblue3")
-  w = waterfall_df %>% mutate(uniq_acc = factor(uniq_acc, levels = unique(uniq_acc)))
-  ggplot(w ,aes(x = uniq_acc)) +
-    geom_bar( aes(y = set1, fill = name1), stat = "identity", width = 11) +
-    geom_bar( aes(y = -set2, fill = name2), stat = "identity", width = 1) +
-    scale_y_continuous(limits = c(-100,100), breaks = seq(-100, 100, 10)) +
-    scale_fill_manual(values =  c("salmon1", "steelblue3")) +
-    ylab("Frequency of positive ligandomes (%)") +
-    xlab("Source Proteins") +
-    labs(title = title) +       
-    theme_bw() +
-    theme(axis.text.x = element_blank(),
-          axis.ticks.x = element_blank(), 
-          panel.background = element_rect(fill = "transparent"), # bg of the panel
-          plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
-          panel.grid.major = element_blank(), # get rid of major grid
-          panel.grid.minor = element_blank(), # get rid of minor grid
-          legend.title = element_blank(),
-          plot.title = element_text(hjust = 0.5))
-  
-}
-
-# plots with peptide sequences
-makeWaterfallDF <- function(df1, df2) {
-  # union of unique sequencs --> x achse 
-  uniq_seq <- unique(c(df1$Sequence, df2$Sequence))
-  #unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample 
-  df1 = df1 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-  df2 = df2 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-  # neues df 
-  waterfall_df = data.frame(uniq_seq)
-  # ratio of peptide occurences für NEC und INF 
-  waterfall_df$set1 = sapply(uniq_seq, function(seq){
-    mean(ifelse(is.na(matchAll(seq, df1$Sequence)), 0,
-                (length(matchAll(seq, df1$Sequence))/length(unique(df1$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set2 = sapply(uniq_seq, function(seq){
-    mean(ifelse(is.na(matchAll(seq, df2$Sequence)), 0,
-                (length(matchAll(seq, df2$Sequence))/length(unique(df2$Patient_ID)))*100))
-  })
-  
-  waterfall_df$Total = sapply(uniq_seq, function(seq){
-    (length(matchAll(seq, c(df1$Sequence, df2$Sequence)))/
-       length(c(unique(df1$Patient_ID), unique(df2$Patient_ID))))*100
-  })
-  
-  # filtern des df 
-  exclusive_1 = waterfall_df[which(waterfall_df$set2 == 0),]
-  exclusive_2 = waterfall_df[which(waterfall_df$set1 == 0),]
-  #ordnen
-  exclusive_1 = exclusive_1[order(exclusive_1$set1, decreasing = T),]
-  exclusive_2 = exclusive_2[order(exclusive_2$set2),]
-  
-  other = waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0),]
-  other = other[order(other$set1, other$set2),]
-  #create new waterfall df 
-  waterfall_df = rbind(exclusive_1, other, exclusive_2)
-  return(waterfall_df)
-}
-plotWaterfall <- function(waterfall_df, name1, name2, title) {
-  #color_legend = c( name1 = "salmon1", name2= "steelblue3")
-  w = waterfall_df %>% mutate(uniq_seq = factor(uniq_seq, levels = unique(uniq_seq)))
-  ggplot(w ,aes(x = uniq_seq)) +
-    geom_bar( aes(y = set1, fill = name1), stat = "identity", width = 1) +
-    geom_bar( aes(y = -set2, fill = name2), stat = "identity", width = 1) +
-    scale_y_continuous(limits = c(-100,100), breaks = seq(-100, 100, 10)) +
-    scale_fill_manual(values =  c("salmon1", "steelblue3")) +
-    ylab("Frequency of positive ligandomes (%)") +
-    xlab("Sequences") +
-    labs(title = title) +       
-    theme_bw() +
-    theme(axis.text.x = element_blank(),
-          axis.ticks.x = element_blank(), 
-          panel.background = element_rect(fill = "transparent"), # bg of the panel
-          plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
-          panel.grid.major = element_blank(), # get rid of major grid
-          panel.grid.minor = element_blank(), # get rid of minor grid
-          legend.title = element_blank(),
-          plot.title = element_text(hjust = 0.5))
-  
-}
-
-#venn diagram for waterfall 
-waterfall_venn <- function(listarea1,listarea2, category){
-  grid.newpage()
-  VennDiagram::draw.pairwise.venn(area1 = length(unique(listarea1)),area2 = length(unique(listarea2)),
-                                  cross.area = length(Reduce(dplyr::intersect, list(unique(listarea1), unique(listarea2)))),
-                                  #category = category, 
-                                  fill = c("salmon1", "steelblue3"),
-                                  cat.pos = c(0, 0), cat.dist = c(.05, .05),
-                                  cex = 1.5,
-                                  cat.cex = 1.5)
-  
-}
-
-# get most frequent region exclusive peptides / proteins and most shared between all regions 
-make_multi_waterfall_df <- function(df1, df2, df3){
-  uniq_seq <- unique(c(df1$Sequence, df2$Sequence, df3$Sequence))
-  
-  #unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample 
-  df1 = df1 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-  df2 = df2 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-  df3 = df3 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-  # neues df 
-  waterfall_df = data.frame(uniq_seq)
-  # ratio of peptide occurences für NEC und INF 
-  waterfall_df$set1 = sapply(uniq_seq, function(seq){
-    mean(ifelse(is.na(matchAll(seq, df1$Sequence)), 0,
-                (length(matchAll(seq, df1$Sequence))/length(unique(df1$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set2 = sapply(uniq_seq, function(seq){
-    mean(ifelse(is.na(matchAll(seq, df2$Sequence)), 0,
-                (length(matchAll(seq, df2$Sequence))/length(unique(df2$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set3 = sapply(uniq_seq, function(seq){
-    mean(ifelse(is.na(matchAll(seq, df3$Sequence)), 0,
-                (length(matchAll(seq, df3$Sequence))/length(unique(df3$Patient_ID)))*100))
-  })
-  
-
-  
-  waterfall_df$Total = sapply(uniq_seq, function(seq){
-    (length(matchAll(seq, c(df1$Sequence, df2$Sequence, df3$Sequence)))/
-       length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID))))*100
-  })
-  
-  
-  # filtern des df 
-  exclusive_1 = waterfall_df[which(waterfall_df$set2 == 0 & waterfall_df$set3 == 0 ),]
-  exclusive_2 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set3 == 0 ),]
-  exclusive_3 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 ),]
-  #exclusive_4 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 & waterfall_df$set3 == 0),]
-  
- 
-  shared = waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0),]
-  
-  all = waterfall_df
-  
-
-  #create new waterfall df waterfall_df = rbind(exclusive_1, exclusive_2, exclusive_3, exclusive_4, shared)
-  waterfall_df2 = list(Nec = exclusive_1, T1 = exclusive_2, INF = exclusive_3, Shared = shared, all = all)
-  return(waterfall_df2)
-  
-}
-
-make_multi_waterfall_acc <- function(df1, df2, df3){
-  uniq_acc <- unique(c(df1$Accessions, df2$Accessions, df3$Accessions))
-  
-  #unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample 
-  df1 = df1 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  df2 = df2 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  df3 = df3 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  # neues df 
-  waterfall_df = data.frame(uniq_acc)
-  # ratio of peptide occurences für NEC und INF 
-  waterfall_df$set1 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df1$Accessions)), 0,
-                (length(matchAll(acc, df1$Accessions))/length(unique(df1$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set2 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df2$Accessions)), 0,
-                (length(matchAll(acc, df2$Accessions))/length(unique(df2$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set3 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df3$Accessions)), 0,
-                (length(matchAll(acc, df3$Accessions))/length(unique(df3$Patient_ID)))*100))
-  })
-  
-  
-  
-  waterfall_df$Total = sapply(uniq_acc, function(acc){
-    (length(matchAll(acc, c(df1$Accessions, df2$Accessions, df3$Accessions)))/
-       length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID))))*100
-  })
-  
-  
-  # filtern des df 
-  exclusive_1 = waterfall_df[which(waterfall_df$set1 != 0 ),]
-  exclusive_2 = waterfall_df[which(waterfall_df$set2 != 0),]
-  exclusive_3 = waterfall_df[which(waterfall_df$set3 != 0),]
-  #exclusive_4 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 & waterfall_df$set3 == 0),]
-  
-  
-  #shared = waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0),]
-  
-  #all = waterfall_df
-  
-  
-  #create new waterfall df waterfall_df = rbind(exclusive_1, exclusive_2, exclusive_3, exclusive_4, shared)
-  waterfall_df2 = list(Nec = exclusive_1, T1 =  exclusive_2, INF =  exclusive_3)
-  return(waterfall_df2)
-  
-  
+  comparison <- unlist(strsplit(com, "_vs_"))
+  df_1 <- do.call(rbind.data.frame,region_specific_I[comparison[1]])
+  df_2 <- do.call(rbind.data.frame,region_specific_I[comparison[2]])
+  #make waterfall data frame 
+  waterfall_df <- make_waterfall_df(df_1,df_2, with_seq = FALSE)
+  plot_wf <- plot_waterfall(waterfall_df,
+                 comparison[1],
+                 comparison[2],
+                 com,
+                 with_seq = FALSE)
+  plot(plot_wf)
+  grid::grid.newpage()
+  plot_venn_waterfall(df_1$Accessions, df_2$Accessions)
 }
 
 
+# Multiwaterfall----------------------------------------------------------------
 
 
-#MAKE WATERFALL DATAFRAMES==============================
-#waterfallDF for sequences for uniqe protein mappers 
-NEC_T1_w_df_uniqacc_seq = makeWaterfallDF(NEC_I_uniqe_acc_filterd,T1_I_uniqe_acc_filterd)
-NEC_INF_w_df_uniqacc_seq = makeWaterfallDF(NEC_I_uniqe_acc_filterd,INF_I_uniqe_acc_filterd)
-INF_T1_w_df_uniqacc_seq = makeWaterfallDF(INF_I_uniqe_acc_filterd, T1_I_uniqe_acc_filterd)
-
-NEC_T1_w_df_uniqacc_seq_2 = makeWaterfallDF(NEC_II_uniqe_acc_filterd,T1_II_uniqe_acc_filterd)
-NEC_INF_w_df_uniqacc_seq_2 = makeWaterfallDF(NEC_II_uniqe_acc_filterd,INF_II_uniqe_acc_filterd)
-INF_T1_w_df_uniqacc_seq_2 = makeWaterfallDF(INF_II_uniqe_acc_filterd, T1_II_uniqe_acc_filterd)
-
-#WaterfallDF for source proteins for uniqe protein mappers
-NEC_T1_w_df_acc = makeWaterfallDF_acc(NEC_I_uniqe_acc_filterd,T1_I_uniqe_acc_filterd)
-NEC_INF_w_df_acc = makeWaterfallDF_acc(NEC_I_uniqe_acc_filterd,INF_I_uniqe_acc_filterd)
-INF_T1_w_df_acc = makeWaterfallDF_acc(INF_I_uniqe_acc_filterd, T1_I_uniqe_acc_filterd)
-
-NEC_T1_w_df_acc_2 = makeWaterfallDF_acc(NEC_II_uniqe_acc_filterd,T1_II_uniqe_acc_filterd)
-NEC_INF_w_df_acc_2 = makeWaterfallDF_acc(NEC_II_uniqe_acc_filterd,INF_II_uniqe_acc_filterd)
-INF_T1_w_df_acc_2 = makeWaterfallDF_acc(INF_II_uniqe_acc_filterd, T1_II_uniqe_acc_filterd)
-
-
-#PLOT WATERFALL================================
-#PLOT waterfall for sequences for uniqe protein mappers 
-plotWaterfall(NEC_T1_w_df_uniqacc_seq, name1 = "NEC", name2 =  "T1", "NEC vs T1 class I uniq acc, peptides")
-plotWaterfall(NEC_INF_w_df_uniqacc_seq, name1 = "NEC", name2 =  "INF", "NEC vs INF class I uniq acc, peptides")
-plotWaterfall(INF_T1_w_df_uniqacc_seq, name1 = "INF", name2 =  "T1", "INF vs T1 class I uniq acc, peptides")
-
-plotWaterfall(NEC_T1_w_df_uniqacc_seq_2, name1 = "NEC", name2 =  "T1", "NEC vs T1 class II uniq acc, peptides")
-plotWaterfall(NEC_INF_w_df_uniqacc_seq_2, name1 = "NEC", name2 =  "INF", "NEC vs INF class II uniq acc, peptides")
-plotWaterfall(INF_T1_w_df_uniqacc_seq_2, name1 = "INF", name2 =  "T1", "INF vs T1 class II uniq acc, peptides")
-
-#PLOT waterfall for source proteins for uniqe protein mappers
-plotWaterfall_acc(NEC_T1_w_df_acc, name1 = "NEC", name2 =  "T1", "NEC vs T1 class I, uniq acc")
-plotWaterfall_acc(NEC_INF_w_df_acc, name1 = "NEC", name2 =  "INF", "NEC vs INF class I, uniq acc")
-plotWaterfall_acc(INF_T1_w_df_acc, name1 = "INF", name2 =  "T1", "INF vs T1 class I, uniq acc")
-
-
-plotWaterfall_acc(NEC_T1_w_df_acc_2, name1 = "NEC", name2 =  "T1", "NEC vs T1 class II, uniq acc")
-plotWaterfall_acc(NEC_INF_w_df_acc_2, name1 = "NEC", name2 =  "INF", "NEC vs INF class II, uniq acc")
-plotWaterfall_acc(INF_T1_w_df_acc_2, name1 = "INF", name2 =  "T1", "INF vs T1 class II, uniq acc")
-
-
-
-
-#VENN DIAGRAMS FOR WATERFALL==============================
-#PLOT VENN for sequences for uniqe protein mappers 
-waterfall_venn(NEC_I_uniqe_acc_filterd$Sequence, T1_I_uniqe_acc_filterd$Sequence, c("NEC", "T1"))
-waterfall_venn(NEC_I_uniqe_acc_filterd$Sequence, INF_I_uniqe_acc_filterd$Sequence, c("NEC", "INF"))
-waterfall_venn(INF_I_uniqe_acc_filterd$Sequence, T1_I_uniqe_acc_filterd$Sequence, c("INF", "T1"))
-
-waterfall_venn(NEC_II_uniqe_acc_filterd$Sequence, T1_II_uniqe_acc_filterd$Sequence, c("NEC", "T1"))
-waterfall_venn(NEC_II_uniqe_acc_filterd$Sequence, INF_II_uniqe_acc_filterd$Sequence, c("NEC", "INF"))
-waterfall_venn(INF_II_uniqe_acc_filterd$Sequence, T1_II_uniqe_acc_filterd$Sequence, c("INF", "T1"))
-
-
-#PLOT VENN for source proteins for uniqe protein mappers
-waterfall_venn(NEC_I_uniqe_acc_filterd$Accessions, T1_I_uniqe_acc_filterd$Accessions, c("NEC", "T1"))
-waterfall_venn(NEC_I_uniqe_acc_filterd$Accessions, INF_I_uniqe_acc_filterd$Accessions, c("NEC", "INF"))
-waterfall_venn(INF_I_uniqe_acc_filterd$Accessions, T1_I_uniqe_acc_filterd$Accessions, c("INF", "T1"))
-
-waterfall_venn(NEC_II_uniqe_acc_filterd$Accessions, T1_II_uniqe_acc_filterd$Accessions, c("NEC", "T1"))
-waterfall_venn(NEC_II_uniqe_acc_filterd$Accessions, INF_II_uniqe_acc_filterd$Accessions, c("NEC", "INF"))
-waterfall_venn(INF_II_uniqe_acc_filterd$Accessions, T1_II_uniqe_acc_filterd$Accessions, c("INF", "T1"))
-
-
-
-#-MULTI WATERFALL ================================
 
 #dataset for region exclusive peptides with highest frequency class I##############################
 all_waterfall_withoutBEN = make_multi_waterfall_df(NEC_I_uniqe_acc_filterd, T1_I_uniqe_acc_filterd, INF_I_uniqe_acc_filterd)
