@@ -9,95 +9,107 @@
 ################################################################################
 ###                                                                          ###
 ################################################################################
-## TITLE: make multi Waterfall df ----------------------------------------------------
+## TITLE: make multi Waterfall df ----------------------------------------------
 ## DESCRIPTION:
 ##
 ## PARAMETERS: -
 ##
 ## OUTPUT:
 ##
-make_multi_waterfall_df <- function(df1, df2, df3){
-  
+make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
   if (with_seq == TRUE) {
     uniq_seq <- unique(c(df1$Sequence, df2$Sequence, df3$Sequence))
-    
-    #unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample 
-    df1 = df1 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-    df2 = df2 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-    df3 = df3 %>% group_by(Patient_ID) %>% summarise(Sequence = unique(Sequence))
-    # neues df 
-    waterfall_df = data.frame(uniq_seq)
-    # ratio of peptide occurences für NEC und INF 
-    waterfall_df$set1 = sapply(uniq_seq, function(seq){
-      mean(ifelse(is.na(matchAll(seq, df1$Sequence)), 0,
-                  (length(matchAll(seq, df1$Sequence))/length(unique(df1$Patient_ID)))*100))
-    })
-    
-    waterfall_df$set2 = sapply(uniq_seq, function(seq){
-      mean(ifelse(is.na(matchAll(seq, df2$Sequence)), 0,
-                  (length(matchAll(seq, df2$Sequence))/length(unique(df2$Patient_ID)))*100))
-    })
-    
-    waterfall_df$set3 = sapply(uniq_seq, function(seq){
-      mean(ifelse(is.na(matchAll(seq, df3$Sequence)), 0,
-                  (length(matchAll(seq, df3$Sequence))/length(unique(df3$Patient_ID)))*100))
-    })
-    
-    
-    
-    waterfall_df$Total = sapply(uniq_seq, function(seq){
-      (length(matchAll(seq, c(df1$Sequence, df2$Sequence, df3$Sequence)))/
-         length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID))))*100
-    })
-    
-    
-    
-  } else (with_seq == FALSE)
-  
-  uniq_acc <- unique(c(df1$Accessions, df2$Accessions, df3$Accessions))
-  
-  #unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample 
-  df1 = df1 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  df2 = df2 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  df3 = df3 %>% group_by(Patient_ID) %>% summarise(Accessions = unique(Accessions))
-  # neues df 
-  waterfall_df = data.frame(uniq_acc)
-  # ratio of peptide occurences für NEC und INF 
-  waterfall_df$set1 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df1$Accessions)), 0,
-                (length(matchAll(acc, df1$Accessions))/length(unique(df1$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set2 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df2$Accessions)), 0,
-                (length(matchAll(acc, df2$Accessions))/length(unique(df2$Patient_ID)))*100))
-  })
-  
-  waterfall_df$set3 = sapply(uniq_acc, function(acc){
-    mean(ifelse(is.na(matchAll(acc, df3$Accessions)), 0,
-                (length(matchAll(acc, df3$Accessions))/length(unique(df3$Patient_ID)))*100))
-  })
-  
-  
-  
-  waterfall_df$Total = sapply(uniq_acc, function(acc){
-    (length(matchAll(acc, c(df1$Accessions, df2$Accessions, df3$Accessions)))/
-       length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID))))*100
-  })
-  
-  # filtern des df 
-  exclusive_1 = waterfall_df[which(waterfall_df$set2 == 0 & waterfall_df$set3 == 0 ),]
-  exclusive_2 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set3 == 0 ),]
-  exclusive_3 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 ),]
-  #exclusive_4 = waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 & waterfall_df$set3 == 0),]
-  
-  shared = waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0),]
-  all = waterfall_df
 
-  #create new waterfall df waterfall_df = rbind(exclusive_1, exclusive_2, exclusive_3, exclusive_4, shared)
-  waterfall_df2 = list(Nec = exclusive_1, T1 = exclusive_2, INF = exclusive_3, Shared = shared, all = all)
+    # unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample
+    df1 <- df1 %>%
+      group_by(Patient_ID) %>%
+      summarise(Sequence = unique(Sequence))
+    df2 <- df2 %>%
+      group_by(Patient_ID) %>%
+      summarise(Sequence = unique(Sequence))
+    df3 <- df3 %>%
+      group_by(Patient_ID) %>%
+      summarise(Sequence = unique(Sequence))
+    # neues df
+    waterfall_df <- data.frame(uniq_seq)
+    # ratio of peptide occurences für NEC und INF
+    waterfall_df$set1 <- sapply(uniq_seq, function(seq) {
+      mean(ifelse(is.na(tuple::matchAll(seq, df1$Sequence)), 0,
+        (length(tuple::matchAll(seq, df1$Sequence)) / length(unique(df1$Patient_ID))) * 100
+      ))
+    })
+
+    waterfall_df$set2 <- sapply(uniq_seq, function(seq) {
+      mean(ifelse(is.na(tuple::matchAll(seq, df2$Sequence)), 0,
+        (length(tuple::matchAll(seq, df2$Sequence)) / length(unique(df2$Patient_ID))) * 100
+      ))
+    })
+
+    waterfall_df$set3 <- sapply(uniq_seq, function(seq) {
+      mean(ifelse(is.na(tuple::matchAll(seq, df3$Sequence)), 0,
+        (length(tuple::matchAll(seq, df3$Sequence)) / length(unique(df3$Patient_ID))) * 100
+      ))
+    })
+
+
+
+    waterfall_df$Total <- sapply(uniq_seq, function(seq) {
+      (length(tuple::matchAll(seq, c(df1$Sequence, df2$Sequence, df3$Sequence))) /
+        length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID)))) * 100
+    })
+  } else {
+    uniq_acc <- unique(c(df1$Accessions, df2$Accessions, df3$Accessions))
+
+    # unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample
+    df1 <- df1 %>%
+      group_by(Patient_ID) %>%
+      summarise(Accessions = unique(Accessions))
+    df2 <- df2 %>%
+      group_by(Patient_ID) %>%
+      summarise(Accessions = unique(Accessions))
+    df3 <- df3 %>%
+      group_by(Patient_ID) %>%
+      summarise(Accessions = unique(Accessions))
+    # neues df
+    waterfall_df <- data.frame(uniq_acc)
+    # ratio of peptide occurences für NEC und INF
+    waterfall_df$set1 <- sapply(uniq_acc, function(acc) {
+      mean(ifelse(is.na(tuple::matchAll(acc, df1$Accessions)), 0,
+        (length(tuple::matchAll(acc, df1$Accessions)) / length(unique(df1$Patient_ID))) * 100
+      ))
+    })
+
+    waterfall_df$set2 <- sapply(uniq_acc, function(acc) {
+      mean(ifelse(is.na(tuple::matchAll(acc, df2$Accessions)), 0,
+        (length(tuple::matchAll(acc, df2$Accessions)) / length(unique(df2$Patient_ID))) * 100
+      ))
+    })
+
+    waterfall_df$set3 <- sapply(uniq_acc, function(acc) {
+      mean(ifelse(is.na(tuple::matchAll(acc, df3$Accessions)), 0,
+        (length(tuple::matchAll(acc, df3$Accessions)) / length(unique(df3$Patient_ID))) * 100
+      ))
+    })
+
+
+
+    waterfall_df$Total <- sapply(uniq_acc, function(acc) {
+      (length(tuple::matchAll(acc, c(df1$Accessions, df2$Accessions, df3$Accessions))) /
+        length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID)))) * 100
+    })
+  }
+
+  # filtern des df
+  exclusive_1 <- waterfall_df[which(waterfall_df$set2 == 0 & waterfall_df$set3 == 0), ]
+  exclusive_2 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set3 == 0), ]
+  exclusive_3 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0), ]
+
+  shared <- waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0), ]
+  all <- waterfall_df
+
+  # create new waterfall df waterfall_df = rbind(exclusive_1, exclusive_2, exclusive_3, exclusive_4, shared)
+  waterfall_df2 <- list(Nec = exclusive_1, T1 = exclusive_2, INF = exclusive_3, Shared = shared, Tumor = all)
   return(waterfall_df2)
-  
 }
 
 
@@ -180,7 +192,7 @@ make_waterfall_df <- function(df1, df2, with_seq) {
   exclusive_1 <- waterfall_df[which(waterfall_df$set2 == 0), ]
   exclusive_2 <- waterfall_df[which(waterfall_df$set1 == 0), ]
   # ordnen
-  exclusive_1 <- exclusive_1[order(exclusive_1$set1, decreasing = T), ]
+  exclusive_1 <- exclusive_1[order(exclusive_1$set1, decreasing = TRUE), ]
   exclusive_2 <- exclusive_2[order(exclusive_2$set2), ]
 
   other <- waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0), ]
@@ -191,6 +203,7 @@ make_waterfall_df <- function(df1, df2, with_seq) {
 }
 
 
+
 ## TITLE: plot Waterfall plot---------------------------------------------------
 ## DESCRIPTION:
 ##
@@ -199,20 +212,19 @@ make_waterfall_df <- function(df1, df2, with_seq) {
 ## OUTPUT:
 ##
 plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
-  if ( with_seq == TRUE) {
+  if (with_seq == TRUE) {
     w <- waterfall_df %>% mutate(uniq_seq = factor(uniq_seq, levels = unique(uniq_seq)))
     x <- w$uniq_seq
     x_lab_text <- "Sequences"
-    
-  } else (with_seq == FALSE)
-  
-  
-  w <-  waterfall_df %>% mutate(uniq_acc = factor(uniq_acc, levels = unique(uniq_acc)))
+  } else {
+    (with_seq == FALSE)
+  }
+  w <- waterfall_df %>% mutate(uniq_acc = factor(uniq_acc, levels = unique(uniq_acc)))
   x <- w$uniq_acc
   x_lab_text <- "Source Proteins"
- 
-  
-  # plot waterfall plot 
+
+
+  # plot waterfall plot
   ggplot(w, aes(x = x)) +
     geom_bar(aes(y = set1, fill = name1), stat = "identity", width = 1) +
     geom_bar(aes(y = -set2, fill = name2), stat = "identity", width = 1) +
@@ -235,16 +247,18 @@ plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
 }
 
 
-plot_venn_waterfall <- function(listarea1,listarea2,title) {
-  
-  VennDiagram::draw.pairwise.venn(area1 = length(unique(listarea1)),area2 = length(unique(listarea2)),
-                                  cross.area = length(Reduce(dplyr::intersect, list(unique(listarea1), unique(listarea2)))),
-                                  #category = category,
-                                  fill = c("salmon1", "steelblue3"),
-                                  cat.pos = c(0, 0), cat.dist = c(.05, .05),
-                                  cex = 1.5,
-                                  cat.cex = 1.5)
+plot_venn_waterfall <- function(listarea1, listarea2, title) {
+  VennDiagram::draw.pairwise.venn(
+    area1 = length(unique(listarea1)), area2 = length(unique(listarea2)),
+    cross.area = length(Reduce(dplyr::intersect, list(unique(listarea1), unique(listarea2)))),
+    # category = category,
+    fill = c("salmon1", "steelblue3"),
+    cat.pos = c(0, 0), cat.dist = c(.05, .05),
+    cex = 1.5,
+    cat.cex = 1.5
+  )
 }
+
 
 
 
@@ -280,6 +294,7 @@ rewrite_HLA_types <- function(uniqe_HLA_types, as_string) {
     return(unique(new_HLA_types))
   }
 }
+
 
 
 ## TITLE: create df from MHCquant results---------------------------------------
@@ -324,6 +339,7 @@ create_data_frame <- function(filelist) {
   return(df)
 }
 
+
 ## TITLE: plot custom venn -----------------------------------------------------
 ## DESCRIPTION: function to plot venn diagrams
 ##
@@ -347,20 +363,86 @@ plot_custom_venn <- function(set, title) {
 }
 
 
-# getProteinAcc <- function(list){
-#   Pacc = c()
-#   acc_only = c()
-#
-#   for( i in list){
-#     str = strsplit(i, ";")
-#     Pacc = append(Pacc, str[[1]])
-#   }
-#   for (i in Pacc){
-#     str = strsplit(i, "|", fixed = TRUE)
-#     acc_only = append(acc_only, str[[1]][2])
-#   }
-#   return(acc_only)
-# }
+
+## TITLE: length distribution plot----------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+plot_length_distribution <- function(df, as_bar = TRUE, title) {
+  df$len <- apply(df, 2, nchar)[, 4]
+  counts <- aggregate(df$len,
+    by = list(Tumor_region = df$Tumor_region, len = df$len),
+    FUN = table
+  )
+
+  if (as_bar == TRUE) {
+    ggplot(counts, aes(x = len, y = x, group = Tumor_region, fill = Tumor_region)) +
+      geom_bar(stat = "identity") +
+      scale_fill_manual(values = brewer.pal(4, "Set2")) +
+      labs(x = "Peptide length", y = "number of HLA peptides") +
+      theme_classic() +
+      ggtitle(title) +
+      theme(axis.text.x = element_text(angle = 45, vjust = 1.2, hjust = 1.2))
+  } else {
+    ggplot(counts, aes(x = len, y = x, group = Tumor_region, color = Tumor_region)) +
+      geom_line() +
+      scale_color_manual(values = brewer.pal(4, "Set2")) +
+      labs(x = "Peptide length", y = "number of HLA peptides") +
+      theme_classic() +
+      ggtitle(title)
+  }
+  theme(axis.text.x = element_text(angle = 45, vjust = 1.2, hjust = 1.2))
+}
+
+
+
+## TITLE: check length of peptides----------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+check_len_II <- function(list) {
+  new_list <- c()
+  for (i in list) {
+    if (nchar(i) >= 9 & nchar(i) < 20000) {
+      new_list <- append(new_list, i)
+    }
+  }
+  return(new_list)
+}
+## TITLE: check length of peptides----------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+check_len_I <- function(list) {
+  new_list <- c()
+  for (i in list) {
+    if (nchar(i) >= 8 & nchar(i) < 15) {
+      new_list <- append(new_list, i)
+    }
+  }
+  return(new_list)
+}
+
+
+
+## TITLE: saturation analysis plot----------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+
+
 ## TITLE: ----------------------------------------------------------------------
 ## DESCRIPTION:
 ##
@@ -368,11 +450,149 @@ plot_custom_venn <- function(set, title) {
 ##
 ## OUTPUT:
 ##
-getProteinAcc_uniqemappers <- function(list) {
+get_protein_acc <- function(list) {
   acc_only <- c()
   for (i in list) {
     str <- strsplit(i, "|", fixed = TRUE)
     acc_only <- append(acc_only, str[[1]][2])
   }
   return(acc_only)
+}
+
+
+
+## TITLE: netMHCpan_to_df_I-----------------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+netMHCpan_results_to_df_I <- function(file) {
+  raw_file <- readLines(file)
+  list <- raw_file[grepl("<=", raw_file)]
+
+  column_names <- c(
+    "Pos", "MHC", "Peptide", "Core", "Of", "Gp", "Gl", "Ip",
+    "Il", "Icore", "Identity", "Score_EL", "%Rank_EL",
+    "Score_BA", "%Rank_BA", "Aff(nM)", "nix", "BindLevel"
+  )
+
+  rows <- as.data.frame(list)
+  split_list <- c()
+  for (i in rows[, 1]) {
+    str <- strsplit(i, " ", fixed = TRUE)
+    split_list <- append(split_list, str)
+  }
+  cleaned_split_list <- list()
+  for (i in 1:length(split_list)) {
+    short_list <- c()
+    for (j in split_list[[i]]) {
+      if (j != "") {
+        short_list <- append(short_list, j)
+      }
+      cleaned_split_list[[i]] <- short_list
+    }
+  }
+  for (i in 1:length(cleaned_split_list)) {
+    if (length(cleaned_split_list[[i]]) != 18) {
+      cleaned_split_list[[i]] <- append(cleaned_split_list[[i]], c("NO", "NO"))
+    }
+  }
+
+  final_df <- do.call(rbind.data.frame, cleaned_split_list)
+  names(final_df) <- column_names
+  final_df <- final_df[-17]
+  return(final_df)
+}
+
+
+
+## TITLE: netMHCpan_to_df_II----------------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+netMHCpan_results_to_df_II <- function(file) {
+  raw_file <- readLines(file)
+  list <- raw_file[grepl("<=", raw_file)]
+
+  column_names <- c(
+    "Pos", "MHC", "Peptide", "Of", "Core", "Core_rel",
+    "Identity", "Score_EL", "%Rank_EL", "Exp_Bind ",
+    "Score_BA", "Affinity(nM)", "%Rank_BA", "BindLevel"
+  )
+  rows <- list
+
+  split_list <- c()
+  for (i in rows) {
+    str <- strsplit(i, " ", fixed = TRUE)
+    split_list <- append(split_list, str)
+  }
+  cleaned_split_list <- list()
+  for (i in 1:length(split_list)) {
+    short_list <- c()
+    for (j in split_list[[i]]) {
+      if (j != "") {
+        short_list <- append(short_list, j)
+      }
+      cleaned_split_list[[i]] <- short_list
+    }
+  }
+  for (i in 1:length(cleaned_split_list)) {
+    if (length(cleaned_split_list[[i]]) != max(lengths(cleaned_split_list))) {
+      difference <- max(lengths(cleaned_split_list)) - length(cleaned_split_list[[i]])
+      vec <- rep("NO", times = difference)
+      cleaned_split_list[[i]] <- append(cleaned_split_list[[i]], vec)
+    }
+  }
+
+  final_df <- do.call(rbind.data.frame, cleaned_split_list)
+  names(final_df) <- column_names
+  return(final_df)
+}
+
+## TITLE: summarise_binder_prediction----------------------------------------------------
+## DESCRIPTION:
+##
+## PARAMETERS: -
+##
+## OUTPUT:
+##
+summarise_binder_pred <- function(binding_prediction_df) {
+  high_freq_pep_df <- data.frame(Peptide = unique(binding_prediction_df$Peptide))
+
+  binding_prediction_df_wb <- binding_prediction_df[binding_prediction_df$BindLevel == "WB", ][2:3]
+  binding_prediction_df_sb <- binding_prediction_df[binding_prediction_df$BindLevel == "SB", ][2:3]
+
+  binding_prediction_df_wb <- binding_prediction_df_wb %>%
+    group_by(Peptide) %>%
+    summarise(MHC = unique(MHC))
+  binding_prediction_df_wb <- binding_prediction_df_wb %>%
+    group_by(Peptide) %>%
+    summarise(toString(c(MHC)))
+  names(binding_prediction_df_wb) <- c("Peptide", "Weak_binders")
+
+  binding_prediction_df_sb <- binding_prediction_df_sb %>%
+    group_by(Peptide) %>%
+    summarise(MHC = unique(MHC))
+  binding_prediction_df_sb <- binding_prediction_df_sb %>%
+    group_by(Peptide) %>%
+    summarise(toString(c(MHC)))
+  names(binding_prediction_df_sb) <- c("Peptide", "Strong_binders")
+
+  high_freq_pep_df <- merge(high_freq_pep_df,
+    binding_prediction_df_wb,
+    by.y = "Peptide",
+    all.x = TRUE
+  )
+  high_freq_pep_df <- merge(high_freq_pep_df,
+    binding_prediction_df_sb,
+    by.y = "Peptide",
+    all.x = TRUE
+  )
+
+  return(high_freq_pep_df)
 }
