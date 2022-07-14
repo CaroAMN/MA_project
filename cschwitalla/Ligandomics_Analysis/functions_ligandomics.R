@@ -9,18 +9,25 @@
 ################################################################################
 ###                                                                          ###
 ################################################################################
-## TITLE: make multi Waterfall df ----------------------------------------------
-## DESCRIPTION:
+
+## TITLE: multi waterfall data frames ------------------------------------------
+## DESCRIPTION: makes dataframes for each tumor reagion with the frequency of
+##              region specific peptides or source proteins as well as of the
+##              combined tumor
 ##
-## PARAMETERS: -
+## PARAMETERS: - df1(2,3): tumor region specific data frames with peptide +
+##                         source protein information [data frame]
+##             - with_seq: if true, frequencies will be computed for peptides
+##                         if false, frequencies will be computed for source
+##                         proteins [boolean]
 ##
-## OUTPUT:
+## OUTPUT: List of dataframes with region specific peptide/protein frequencies
+##         as well as the combinde tumor region frequency data frame
 ##
 make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
   if (with_seq == TRUE) {
     uniq_seq <- unique(c(df1$Sequence, df2$Sequence, df3$Sequence))
 
-    # unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample
     df1 <- df1 %>%
       group_by(Patient_ID) %>%
       summarise(Sequence = unique(Sequence))
@@ -116,18 +123,20 @@ make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
 
 
 ## TITLE: make Waterfall df ----------------------------------------------------
-## DESCRIPTION:
+## DESCRIPTION: makes data frame for waterfall plots
 ##
-## PARAMETERS: -
+## PARAMETERS: - df1 + df2: data frames of the two tumor regions peptides and
+##                          source proteins that should be compared [data frame]
+##             - with_seq: if true, frequencies will be computed for peptides
+##                         if false, frequencies will be computed for source
+##                         proteins [boolean]
 ##
-## OUTPUT:
+## OUTPUT: data frame of peptide or protein frequencies for the tumor regions
 ##
-# plots with peptide sequences
 make_waterfall_df <- function(df1, df2, with_seq) {
   if (with_seq == TRUE) {
     # union of unique sequencs --> x achse
     uniq_seq <- unique(c(df1$Sequence, df2$Sequence))
-    # unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample
     df1 <- df1 %>%
       group_by(Patient_ID) %>%
       summarise(Sequence = unique(Sequence))
@@ -156,7 +165,6 @@ make_waterfall_df <- function(df1, df2, with_seq) {
   } else {
     (with_seq == FALSE)
   }
-  # unique acc per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample
   df1 <- df1 %>%
     group_by(Patient_ID) %>%
     summarise(Accessions = unique(Accessions))
@@ -205,11 +213,18 @@ make_waterfall_df <- function(df1, df2, with_seq) {
 
 
 ## TITLE: plot Waterfall plot---------------------------------------------------
-## DESCRIPTION:
+## DESCRIPTION: function that plots a waterfall plot of a comparison
 ##
-## PARAMETERS: -
+## PARAMETERS: - waterfall_df: data frame of two tumor regions and the respective
+##                             peptide/protein frequencies [data frame]
+##             - name1: name of the first tumor region [string]
+##             - name2: name of the second tumor region [string]
+##             - title: title of the plot [string]
+##             - with_seq: if true, frequencies will be computed for peptides
+##                         if false, frequencies will be computed for source
+##                         proteins [boolean]
 ##
-## OUTPUT:
+## OUTPUT: Waterfall plot of a pairwise comparison
 ##
 plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
   if (with_seq == TRUE) {
@@ -246,7 +261,15 @@ plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
     )
 }
 
-
+## TITLE: plot Venn diagram for waterfall plot ---------------------------------
+## DESCRIPTION: function that plots avenn diagram for the waterfallplot
+##
+## PARAMETERS: - listarea1: peptides/proteins of  first tumor region [vector]
+##             - listarea2: peptides/proteins of the second tumor region [vector]
+##             - title: title of the plot [string]
+##
+## OUTPUT: Venn diagram of a pairwise comparison
+##
 plot_venn_waterfall <- function(listarea1, listarea2, title) {
   VennDiagram::draw.pairwise.venn(
     area1 = length(unique(listarea1)), area2 = length(unique(listarea2)),
@@ -298,11 +321,12 @@ rewrite_HLA_types <- function(uniqe_HLA_types, as_string) {
 
 
 ## TITLE: create df from MHCquant results---------------------------------------
-## DESCRIPTION: function to read in ligandomics data from csv files
+## DESCRIPTION: function to read in ligandomics data from tsv files
 ##
-## PARAMETERS: -
+## PARAMETERS: - filelist: list of all files including the respective path [vector]
 ##
-## OUTPUT:
+## OUTPUT: data frame with all detected peptides + source proteins + tumor region
+##         information + patient ids
 ##
 create_data_frame <- function(filelist) {
   # create empty classI dataframe
@@ -334,7 +358,7 @@ create_data_frame <- function(filelist) {
     df <- rbind(df, temp_df)
   }
   df$Sequence <- str_replace_all(df$Sequence, "\\(Oxidation\\)", "") # get rid of the (Oxidation) string in sequences
-  df$Tumor_region <- str_replace_all(df$Tumor_region, "\\.csv", "")
+  df$Tumor_region <- str_replace_all(df$Tumor_region, "\\.tsv", "")
   df$Sequence <- toupper(df$Sequence) # sequence all upper case
   return(df)
 }
@@ -343,9 +367,10 @@ create_data_frame <- function(filelist) {
 ## TITLE: plot custom venn -----------------------------------------------------
 ## DESCRIPTION: function to plot venn diagrams
 ##
-## PARAMETERS: -
+## PARAMETERS: - set: named list of data 
+##             - title: title of the venn diagram [string ]
 ##
-## OUTPUT:
+## OUTPUT: Venn diagram
 ##
 plot_custom_venn <- function(set, title) {
   venn_data <- process_data(Venn(set))
@@ -365,9 +390,13 @@ plot_custom_venn <- function(set, title) {
 
 
 ## TITLE: length distribution plot----------------------------------------------
-## DESCRIPTION:
+## DESCRIPTION: function that plots the lenght distribution of identified peptides
+##              in the raw data 
 ##
-## PARAMETERS: -
+## PARAMETERS: - df: dataframe with peptide data and tumor region information
+##             - as_bar: if true the len. distribution will be shown as bar plot
+##                       if false the len. distribution will be shown as line plot
+##             - title: title of the plot [string]
 ##
 ## OUTPUT:
 ##
@@ -398,14 +427,16 @@ plot_length_distribution <- function(df, as_bar = TRUE, title) {
 }
 
 
-
 ## TITLE: check length of peptides----------------------------------------------
-## DESCRIPTION:
+## DESCRIPTION: functions that takes a list of peptides as input and checks the
+##              length of each peptide. Peptides that don't fullfill the length
+##              criteria of netMHCpan restrictions will be excluded
 ##
-## PARAMETERS: -
+## PARAMETERS: - list: list of peptide sequences [verctor of strings]
 ##
-## OUTPUT:
+## OUTPUT: new list with all peptides that match the netMHCpan criteria
 ##
+# for class II MHC peptides
 check_len_II <- function(list) {
   new_list <- c()
   for (i in list) {
@@ -415,13 +446,7 @@ check_len_II <- function(list) {
   }
   return(new_list)
 }
-## TITLE: check length of peptides----------------------------------------------
-## DESCRIPTION:
-##
-## PARAMETERS: -
-##
-## OUTPUT:
-##
+# for class I MHC peptides
 check_len_I <- function(list) {
   new_list <- c()
   for (i in list) {
@@ -441,15 +466,17 @@ check_len_I <- function(list) {
 ##
 ## OUTPUT:
 ##
+# TODO: include saturation analysis 
 
-
-## TITLE: ----------------------------------------------------------------------
-## DESCRIPTION:
+## TITLE: get protein Accessions------------------------------------------------
+## DESCRIPTION: function that rewrite protein Accessions to uniprot IDs
 ##
-## PARAMETERS: -
+## PARAMETERS: - list: list of protein Accessions that should be rewritten to
+##                     uniprot IDs [vector]
 ##
-## OUTPUT:
+## OUTPUT: list of uniprot IDs
 ##
+# TODO: dont need the for loop try out
 get_protein_acc <- function(list) {
   acc_only <- c()
   for (i in list) {
@@ -460,13 +487,13 @@ get_protein_acc <- function(list) {
 }
 
 
-
 ## TITLE: netMHCpan_to_df_I-----------------------------------------------------
-## DESCRIPTION:
+## DESCRIPTION: function that creates a summarised dataframe from netMHCpan
+##              binding prediction results for class I HLA peptides
 ##
-## PARAMETERS: -
+## PARAMETERS: - file: text file with the netMHCpan class I results
 ##
-## OUTPUT:
+## OUTPUT: - data frame with binding prediction results
 ##
 netMHCpan_results_to_df_I <- function(file) {
   raw_file <- readLines(file)
@@ -507,13 +534,13 @@ netMHCpan_results_to_df_I <- function(file) {
 }
 
 
-
-## TITLE: netMHCpan_to_df_II----------------------------------------------------
-## DESCRIPTION:
+## TITLE: netMHCpan_to_df_II-----------------------------------------------------
+## DESCRIPTION: function that creates a summarised dataframe from netMHCpan
+##              binding prediction results for class II HLA peptides
 ##
-## PARAMETERS: -
+## PARAMETERS: - file: text file with the netMHCpan class II results
 ##
-## OUTPUT:
+## OUTPUT: - data frame with binding prediction results
 ##
 netMHCpan_results_to_df_II <- function(file) {
   raw_file <- readLines(file)

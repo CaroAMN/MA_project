@@ -22,25 +22,24 @@ required_libs <- c(
   "tibble", "ggplot2", "org.Hs.eg.db", "RColorBrewer", "EnsDb.Hsapiens.v86"
 )
 
-suppressMessages(invisible(lapply(required_Libs, library, character.only = TRUE)))
+suppressMessages(invisible(lapply(required_libs, library, character.only = TRUE)))
 
 
 ################################################################################
 ###                            Load Data                                     ###
 ################################################################################
-# load HLA-typing dataframe form Marcel Immunology------------------------------
+# load patients HLA-typing data, important for predicting binding affinity
+# with netMHCpan later
 GB_HLA_types <- read_xlsx(paste0(input_dir, "HLA-Typisierung_GBM.xlsx"),
   col_names = TRUE
 )
-
 # get list of unique HLA types
 uniqe_HLA_types <- unique(c(as.matrix(GB_HLA_types[2:16, 2:7])))
-# rewrite HLA types that NetMHCpan can use them and save them as vector
+# process HLA-typing data
 new_HLA_types <- rewrite_HLA_types(uniqe_HLA_types, as_string = FALSE)
 
-# Benign data Immunology -------------------------------------------------------
-# more specific
-# less hits
+
+# Benign data from inhouse database of the immunology department tuebingen------
 benign_pep_I <- read.csv(paste0(input_dir, "newBenignmorespecific/Benign_class1.csv"),
   header = FALSE,
   sep = ","
@@ -51,8 +50,8 @@ benign_pep_II <- read.csv(paste0(input_dir, "newBenignmorespecific/Benign_class2
 )[, 1:2]
 
 
-# HLA-Ligand Atlas data ---------------------------------------------------------
-# read in dataframes from HLA ligand antlas
+# Data from the HLA-Ligand Atlas database---------------------------------------
+# read in dataframes from HLA ligand atlas
 HLA_ligand_atlas_pep <- read.csv(paste0(input_dir, "hla_2020.12/HLA_aggregated.tsv"),
   header = TRUE,
   sep = "\t"
@@ -61,7 +60,7 @@ HLA_ligand_atlas_acc <- read.csv(paste0(input_dir, "hla_2020.12/HLA_protein_map.
   header = TRUE,
   sep = "\t"
 )
-# aggregate HLA ligand atlas dataframe bevor merging
+# aggregate HLA ligand atlas dataframe befor merging
 HLA_ligand_atlas_acc <- HLA_ligand_atlas_acc %>%
   group_by(peptide_sequence_id) %>%
   summarise(acc = toString(uniprot_id))
@@ -71,34 +70,29 @@ HLA_atlas_data <- merge(HLA_ligand_atlas_pep, HLA_ligand_atlas_acc, by = "peptid
 # split the ligand atlas according to the hla class ( 1 or 2 )
 HLA_atlas_data <- split(HLA_atlas_data, HLA_atlas_data$hla_class)
 
-# TUMOR REGION LIGANDOMICS DATA-------------------------------------------------
-# dataframe mappin uniprot ids to gene names
-mapping_df <- AnnotationDbi::select(EnsDb.Hsapiens.v86,
-  keys = accesionList,
-  columns = "GENENAME",
-  keytype = "UNIPROTID"
-)
 
-
-# get all filenames with path
-files_cI <- dir(paste0(input_dir, "ClassI"),
+# GB tumor region ligandomics data----------------------------------------------
+# get all filenames with path of the raw data
+files_cI <- dir(paste0(input_dir, "ligandomics_results_classI_8-12"),
   recursive = TRUE,
-  pattern = ".csv",
+  pattern = ".tsv",
   full.names = TRUE
 )
-files_cII <- dir(paste0(input_dir, "ClassII"),
+files_cII <- dir(paste0(input_dir, "ligandomics_results_classII_8-30"),
   recursive = TRUE,
-  pattern = ".csv",
+  pattern = ".tsv",
   full.names = TRUE
 )
 
-# read in data
+# create dataframes from raw results
 classI_df <- create_data_frame(files_cI)
 classII_df <- create_data_frame(files_cII)
 
-# DATA PREPERATION -------------------------------------------------------------
-# combine benign data
-
+################################################################################
+###                          Data preparation                                ###
+################################################################################
+# merge HLA-Ligand Atlas data and benign data from inhouse immu. data base
+# to create a comined data set of known benign peptides
 combi_benign_pep_I <- c(
   HLA_atlas_data$`HLA-I`$peptide_sequence,
   HLA_atlas_data$`HLA-I+II`$peptide_sequence,
@@ -109,22 +103,30 @@ combi_benign_pep_II <- c(
   HLA_atlas_data$`HLA-I+II`$peptide_sequence,
   benign_pep_II$V1
 )
-# filter my datasets so that the known benign peptides frombenign pep db are not
-# there anymore
+# filter GB data so that the known benign peptides are excluded
 classI_df <- subset(classI_df, !(Sequence %in% combi_benign_pep_I))
 classII_df <- subset(classII_df, !(Sequence %in% combi_benign_pep_II))
 
-# dataset that hase only peptides predicted to originate only from one protein
-# not multiple
+# remove peptides that were predicted to originate from more than one
+# source protein in the GB data
 classI_df <- classI_df[-grep(";", classI_df$Accessions), ]
-classI_df$Accessions <- get_protein_acc(classI_df$Accessions)
-
 classII_df <- classII_df[-grep(";", classII_df$Accessions), ]
+# rewrite protein accessions in GB data to uniprot-ids
+classI_df$Accessions <- get_protein_acc(classI_df$Accessions)
 classII_df$Accessions <- get_protein_acc(classII_df$Accessions)
 
-classI_df <- merge(classI_df, mapping_df, by = "Accessions", all.x = TRUE)
-classII_df <- merge(classII_df, mapping_df, by = "Accessions", all.x = TRUE)
-# create than dataframes that are filterd+uniqe origin that are region specific
+# create dataframe mappin uniprot ids to gene names
+mapping_df <- AnnotationDbi::select(EnsDb.Hsapiens.v86,
+  keys = c(classI_df$Accessionsm, classII_df$Accessions),
+  columns = "GENENAME",
+  keytype = "UNIPROTID"
+)
+
+
+# add the gene names to the respective uniprot ids
+classI_df <- merge(classI_df, mapping_df, by.x = "Accessions", by.y = "UNIPROTID", all.x = TRUE)
+classII_df <- merge(classII_df, mapping_df, by = "Accessions", by.y = "UNIPROTID", all.x = TRUE)
+# split GB data to get tumor region specific peptide data
 region_specific_I <- split(classI_df, classI_df$Tumor_region)
 region_specific_II <- split(classII_df, classII_df$Tumor_region)
 
@@ -168,7 +170,7 @@ plot_length_distribution(classI_df,
 )
 
 
-# saturation analysis ===================
+# saturation analysis-----------------------------------------------------------
 # TODO: make functions here
 # y axis = num of unique peptides
 # x axis = num of samples
@@ -237,8 +239,7 @@ ggplot(sat_classII, aes(x = sat_classII$num_samples, y = fit_sat_classII)) +
 # TODO: adjust color for tumor regions
 # TODO: save each plot as pdf
 
-# for loop mit allen combination wie in rna seq analysis
-
+# loop over all pairwise comparisons to get for each a waterfall plot + venn diagram
 for (com in apply(combn(names(region_specific_I), 2), 2, paste, collapse = "_vs_")) {
   comparison <- unlist(strsplit(com, "_vs_"))
   df_1 <- do.call(rbind.data.frame, region_specific_I[comparison[1]])
@@ -395,7 +396,7 @@ for (name in names(netMHCpan_II_df)) {
 
 
 ################################################################################
-# loop over all region in net MHCp results
+# loop over all region in netMHCpan results
 for (region in names(netMHCpan_I_df)) {
   # get ppetides from netmhcpan results + binding pred +on which hla class + add region info
   binding_pred_df <- summarise_binder_pred(netMHCpan_I_df[region][[1]])
@@ -460,7 +461,7 @@ for (region in names(netMHCpan_I_df)) {
   )
 
   # filter out every column that has benign in it
-  peptide_selection <- peptide_selection[-grep("BEN",peptide_selection$Tumor_region), ]
+  peptide_selection <- peptide_selection[-grep("BEN", peptide_selection$Tumor_region), ]
 
   # write peptide selection to output directory
   write.table(peptide_selection,
