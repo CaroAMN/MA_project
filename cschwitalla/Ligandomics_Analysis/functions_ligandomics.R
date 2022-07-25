@@ -10,6 +10,10 @@
 ###                                                                          ###
 ################################################################################
 
+region_color <- setNames(c("#4B6C22", "#74add1", "#9e0142", "#fdae61"), c("BEN", "INF", "NEC", "T1"))
+
+
+
 ## TITLE: multi waterfall data frames ------------------------------------------
 ## DESCRIPTION: makes dataframes for each tumor reagion with the frequency of
 ##              region specific peptides or source proteins as well as of the
@@ -244,7 +248,7 @@ plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
     geom_bar(aes(y = set1, fill = name1), stat = "identity", width = 1) +
     geom_bar(aes(y = -set2, fill = name2), stat = "identity", width = 1) +
     scale_y_continuous(limits = c(-100, 100), breaks = seq(-100, 100, 10)) +
-    scale_fill_manual(values = c("salmon1", "steelblue3")) +
+    scale_fill_manual(values = c(region_color[name1][[1]], region_color[name2][[1]])) +
     ylab("Frequency of positive ligandomes (%)") +
     xlab(x_lab_text) +
     labs(title = title) +
@@ -270,12 +274,12 @@ plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
 ##
 ## OUTPUT: Venn diagram of a pairwise comparison
 ##
-plot_venn_waterfall <- function(listarea1, listarea2, title) {
+plot_venn_waterfall <- function(listarea1, listarea2, region1,region2) {
   VennDiagram::draw.pairwise.venn(
     area1 = length(unique(listarea1)), area2 = length(unique(listarea2)),
     cross.area = length(Reduce(dplyr::intersect, list(unique(listarea1), unique(listarea2)))),
     # category = category,
-    fill = c("salmon1", "steelblue3"),
+    fill = c(region_color[region1][[1]], region_color[region2][[1]]),
     cat.pos = c(0, 0), cat.dist = c(.05, .05),
     cex = 1.5,
     cat.cex = 1.5

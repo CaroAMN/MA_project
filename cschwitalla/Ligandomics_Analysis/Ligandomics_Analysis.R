@@ -236,7 +236,6 @@ ggplot(sat_classII, aes(x = sat_classII$num_samples, y = fit_sat_classII)) +
 
 # Waterfall plots---------------------------------------------------------------
 # TODO: plot maybe venn into watferall
-# TODO: adjust color for tumor regions
 # TODO: save each plot as pdf
 
 # loop over all pairwise comparisons to get for each a waterfall plot + venn diagram
@@ -254,7 +253,7 @@ for (com in apply(combn(names(region_specific_I), 2), 2, paste, collapse = "_vs_
   )
   plot(plot_wf)
   grid::grid.newpage()
-  plot_venn_waterfall(df_1$Accessions, df_2$Accessions)
+  plot_venn_waterfall(df_1$Accessions, df_2$Accessions,comparison[1],comparison[2])
 }
 
 
@@ -472,3 +471,9 @@ for (region in names(netMHCpan_I_df)) {
     file = paste0(output_dir, region, "_peptide_selection.tsv")
   )
 }
+
+# test 
+
+
+
+
