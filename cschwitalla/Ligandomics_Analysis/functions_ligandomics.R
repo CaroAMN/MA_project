@@ -10,7 +10,85 @@
 ###                                                                          ###
 ################################################################################
 
-region_color <- setNames(c("#4B6C22", "#74add1", "#9e0142", "#fdae61"), c("BEN", "INF", "NEC", "T1"))
+#region_color <- setNames(c("#4B6C22", "#74add1", "#9e0142", "#fdae61", "#5A163A"), c("BEN", "INF", "NEC", "T1", "Tumor"))
+region_color <- setNames(c("#4B6C22", "#74add1", "#9e0142", "#fdae61"),
+                         c("BEN", "INF", "NEC", "T1"))
+
+
+
+calc_allotype_f <- function(x, allotype_df) {
+  if (!is.na(x$Strong_binders)) {  # use strong binders as default
+    if (!grepl(",", x$Strong_binders)) { # if mutliple strong binders then skip
+      allotype <- x$Strong_binders
+      #check which patients have allotypes
+      pattern <- paste(as.list(strsplit(allotype_df[allotype_df$value == allotype,]$toString.c.Patient_ID.., ", " )[[1]]), collapse = "|")
+      test_patients <- c(strsplit(x$Patient,", ")[[1]])
+      patients <- grep(pattern, test_patients, value = TRUE )
+      n_patiens <- stringr::str_count(paste(patients, collapse = ","), "Z")
+      totl_patiens <- allotype_df[allotype_df$value == allotype, ]$len
+      allo_f <- n_patiens / totl_patiens * 100
+    } else {
+      return(NA)
+    }
+  } else {
+    if (!grepl(",", x$Weak_binders, fixed = TRUE)) { # if mutliple strong binders then skip
+      allotype <- x$Weak_binders
+      pattern <- paste(as.list(strsplit(allotype_df[allotype_df$value == allotype,]$toString.c.Patient_ID.., ", " )[[1]]), collapse = "|")
+      test_patients <- c(strsplit(x$Patient,", ")[[1]])
+      patients <- grep(pattern, test_patients, value = TRUE )
+      n_patiens <- stringr::str_count(paste(patients, collapse = ","), "Z")
+      totl_patiens <- allotype_df[allotype_df$value == allotype, ]$len
+      allo_f <- n_patiens / totl_patiens * 100
+      return(allo_f)
+    } else {
+      return(NA)
+    }
+  }
+}
+
+
+calc_peptide_selection_frequency <- function(peptide_df) {
+  
+  #frequency_I_df <- peptide_df[c("Patient_ID", "Sequence")]
+  frequency_I_df <- peptide_df[c("Patient", "Peptide")]
+  frequency_I_df <- frequency_I_df %>% dplyr::group_by(Peptide) %>% dplyr::summarise(Patient =unique(Patient))
+  frequency_I_df <- frequency_I_df %>% dplyr::group_by(Peptide) %>% dplyr::summarise(toString(c(Patient)))
+  frequency_I_df$len <- stringr::str_count(frequency_I_df$`toString(c(Patient))`,"Z")
+  frequency_I_df$freq <- frequency_I_df$len / length(unique(classI_df$Patient)) *100
+  
+  peptide_df <- merge(peptide_df, frequency_I_df[c("Peptide", "freq")], by = "Peptide", all.x = TRUE)
+  return(peptide_df)
+  
+}
+
+
+
+
+calc_peptide_frequency <- function(peptide_df) {
+  
+  frequency_I_df <- peptide_df[c("Patient_ID", "Sequence")]
+  #frequency_I_df <- peptide_df[c("Patient", "Peptide")]
+  frequency_I_df <- frequency_I_df %>% dplyr::group_by(Sequence) %>% dplyr::summarise(Patient_ID =unique(Patient_ID))
+  frequency_I_df <- frequency_I_df %>% dplyr::group_by(Sequence) %>% dplyr::summarise(toString(c(Patient_ID)))
+  frequency_I_df$len <- stringr::str_count(frequency_I_df$`toString(c(Patient_ID))`,"Z")
+  frequency_I_df$freq <- frequency_I_df$len / length(unique(classI_df$Patient_ID)) *100
+  
+  peptide_df <- merge(peptide_df, frequency_I_df[c("Sequence", "freq")], by = "Sequence", all.x = TRUE)
+  return(peptide_df)
+
+}
+calc_neoepitopes_frequency <- function(peptide_df) {
+  
+  frequency_I_df <- peptide_df[c("patient_id", "sequence")]
+  frequency_I_df <- frequency_I_df %>% dplyr::group_by(sequence) %>% dplyr::summarise(patient_id =unique(patient_id))
+  frequency_I_df <- frequency_I_df %>% dplyr::group_by(sequence) %>% dplyr::summarise(toString(c(patient_id)))
+  frequency_I_df$len <- stringr::str_count(frequency_I_df$`toString(c(patient_id))`,"Z")
+  frequency_I_df$freq <- frequency_I_df$len / length(unique(peptide_df$patient_id)) *100
+  
+  peptide_df <- merge(peptide_df, frequency_I_df[c("sequence", "freq")], by = "sequence", all.x = TRUE)
+  return(peptide_df)
+  
+}
 
 
 
@@ -28,9 +106,9 @@ region_color <- setNames(c("#4B6C22", "#74add1", "#9e0142", "#fdae61"), c("BEN",
 ## OUTPUT: List of dataframes with region specific peptide/protein frequencies
 ##         as well as the combinde tumor region frequency data frame
 ##
-make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
+make_multi_waterfall_df <- function(df1, df2, df3, df4, with_seq) {
   if (with_seq == TRUE) {
-    uniq_seq <- unique(c(df1$Sequence, df2$Sequence, df3$Sequence))
+    uniq_seq <- unique(c(df1$Sequence, df2$Sequence, df3$Sequence, df4$Sequence))
 
     df1 <- df1 %>%
       group_by(Patient_ID) %>%
@@ -39,6 +117,9 @@ make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
       group_by(Patient_ID) %>%
       summarise(Sequence = unique(Sequence))
     df3 <- df3 %>%
+      group_by(Patient_ID) %>%
+      summarise(Sequence = unique(Sequence))
+    df4 <- df4 %>%
       group_by(Patient_ID) %>%
       summarise(Sequence = unique(Sequence))
     # neues df
@@ -61,15 +142,21 @@ make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
         (length(tuple::matchAll(seq, df3$Sequence)) / length(unique(df3$Patient_ID))) * 100
       ))
     })
+    
+    waterfall_df$set4 <- sapply(uniq_seq, function(seq) {
+      mean(ifelse(is.na(tuple::matchAll(seq, df4$Sequence)), 0,
+                  (length(tuple::matchAll(seq, df4$Sequence)) / length(unique(df4$Patient_ID))) * 100
+      ))
+    })
 
 
 
     waterfall_df$Total <- sapply(uniq_seq, function(seq) {
-      (length(tuple::matchAll(seq, c(df1$Sequence, df2$Sequence, df3$Sequence))) /
-        length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID)))) * 100
+      (length(tuple::matchAll(seq, c(df1$Sequence, df2$Sequence, df3$Sequence, df4$Sequence))) /
+        length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID), unique(df4$Patient_ID)))) * 100
     })
   } else {
-    uniq_acc <- unique(c(df1$Accessions, df2$Accessions, df3$Accessions))
+    uniq_acc <- unique(c(df1$Accessions, df2$Accessions, df3$Accessions, df4$Accessions))
 
     # unique sequence per sample weil wir sehen wollen in wie vielen samples kommt das pep vor und nicht wie oft im sample
     df1 <- df1 %>%
@@ -79,6 +166,9 @@ make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
       group_by(Patient_ID) %>%
       summarise(Accessions = unique(Accessions))
     df3 <- df3 %>%
+      group_by(Patient_ID) %>%
+      summarise(Accessions = unique(Accessions))
+    df4 <- df4 %>%
       group_by(Patient_ID) %>%
       summarise(Accessions = unique(Accessions))
     # neues df
@@ -101,25 +191,35 @@ make_multi_waterfall_df <- function(df1, df2, df3, with_seq) {
         (length(tuple::matchAll(acc, df3$Accessions)) / length(unique(df3$Patient_ID))) * 100
       ))
     })
+    
+    waterfall_df$set4 <- sapply(uniq_acc, function(acc) {
+      mean(ifelse(is.na(tuple::matchAll(acc, df4$Accessions)), 0,
+                  (length(tuple::matchAll(acc, df4$Accessions)) / length(unique(df4$Patient_ID))) * 100
+      ))
+    })
 
 
 
     waterfall_df$Total <- sapply(uniq_acc, function(acc) {
-      (length(tuple::matchAll(acc, c(df1$Accessions, df2$Accessions, df3$Accessions))) /
-        length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID)))) * 100
+      (length(tuple::matchAll(acc, c(df1$Accessions, df2$Accessions, df3$Accessions, df4$Accessions))) /
+        length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID), unique(df4$Patient_ID)))) * 100
     })
   }
+  print(length(c(unique(df1$Patient_ID), unique(df2$Patient_ID), unique(df3$Patient_ID), unique(df4$Patient_ID))))
 
   # filtern des df
-  exclusive_1 <- waterfall_df[which(waterfall_df$set2 == 0 & waterfall_df$set3 == 0), ]
-  exclusive_2 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set3 == 0), ]
-  exclusive_3 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0), ]
+  exclusive_1 <- waterfall_df[which(waterfall_df$set2 == 0 & waterfall_df$set3 == 0 & waterfall_df$set4 == 0), ]
+  exclusive_2 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set3 == 0 & waterfall_df$set4 == 0), ]
+  exclusive_3 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 & waterfall_df$set4 == 0), ]
+  exclusive_4 <- waterfall_df[which(waterfall_df$set1 == 0 & waterfall_df$set2 == 0 & waterfall_df$set3 == 0), ]
 
-  shared <- waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0), ]
-  all <- waterfall_df
+  shared <- waterfall_df[which(waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0 & waterfall_df$set4 != 0), ]
+  Tumor_shared <- waterfall_df[which((waterfall_df$set1 != 0 & waterfall_df$set2 != 0 & waterfall_df$set3 != 0 )& waterfall_df$set4 == 0), ]
+  Tumor <- waterfall_df[which((waterfall_df$set1 != 0 | waterfall_df$set2 != 0 | waterfall_df$set3 != 0) & waterfall_df$set4 == 0), ]
+  
 
   # create new waterfall df waterfall_df = rbind(exclusive_1, exclusive_2, exclusive_3, exclusive_4, shared)
-  waterfall_df2 <- list(Nec = exclusive_1, T1 = exclusive_2, INF = exclusive_3, Shared = shared, Tumor = all)
+  waterfall_df2 <- list(NEC = exclusive_1, T1 = exclusive_2, INF = exclusive_3, BEN = exclusive_4, Shared_all = shared, Tumor_shared = Tumor_shared, Tumor = Tumor)
   return(waterfall_df2)
 }
 
@@ -142,11 +242,11 @@ make_waterfall_df <- function(df1, df2, with_seq) {
     # union of unique sequencs --> x achse
     uniq_seq <- unique(c(df1$Sequence, df2$Sequence))
     df1 <- df1 %>%
-      group_by(Patient_ID) %>%
-      summarise(Sequence = unique(Sequence))
+      dplyr::group_by(Patient_ID) %>%
+      dplyr::summarise(Sequence = unique(Sequence))
     df2 <- df2 %>%
-      group_by(Patient_ID) %>%
-      summarise(Sequence = unique(Sequence))
+      dplyr::group_by(Patient_ID) %>%
+      dplyr::summarise(Sequence = unique(Sequence))
     # neues df
     waterfall_df <- data.frame(uniq_seq)
     # ratio of peptide occurences für NEC und INF
@@ -166,38 +266,36 @@ make_waterfall_df <- function(df1, df2, with_seq) {
       (length(tuple::matchAll(seq, c(df1$Sequence, df2$Sequence))) /
         length(c(unique(df1$Patient_ID), unique(df2$Patient_ID)))) * 100
     })
-  } else {
-    (with_seq == FALSE)
+  } else {  #(with_seq == FALSE) {
+    # union of unique acc --> x achse
+    uniq_acc <- unique(c(df1$Accessions, df2$Accessions))  
+    df1 <- df1 %>%
+      dplyr::group_by(Patient_ID) %>%
+      dplyr::summarise(Accessions = unique(Accessions))
+      df2 <- df2 %>%
+        dplyr::group_by(Patient_ID) %>%
+        dplyr::summarise(Accessions = unique(Accessions))
+      # neues df
+      waterfall_df <- data.frame(uniq_acc)
+      # ratio of peptide occurences für df1 und df2
+      waterfall_df$set1 <- sapply(uniq_acc, function(acc) {
+        mean(ifelse(is.na(tuple::matchAll(acc, df1$Accessions)), 0,
+          (length(tuple::matchAll(acc, df1$Accessions)) / length(unique(df1$Patient_ID))) * 100
+        ))
+      })
+    
+      waterfall_df$set2 <- sapply(uniq_acc, function(acc) {
+        mean(ifelse(is.na(tuple::matchAll(acc, df2$Accessions)), 0,
+          (length(tuple::matchAll(acc, df2$Accessions)) / length(unique(df2$Patient_ID))) * 100
+        ))
+      })
+    
+      waterfall_df$Total <- sapply(uniq_acc, function(acc) {
+        (length(tuple::matchAll(acc, c(df1$Accessions, df2$Accessions))) /
+          length(c(unique(df1$Patient_ID), unique(df2$Patient_ID)))) * 100
+      })
   }
-  df1 <- df1 %>%
-    group_by(Patient_ID) %>%
-    summarise(Accessions = unique(Accessions))
-  df2 <- df2 %>%
-    group_by(Patient_ID) %>%
-    summarise(Accessions = unique(Accessions))
 
-  # union of unique acc --> x achse
-  uniq_acc <- unique(c(df1$Accessions, df2$Accessions))
-
-  # neues df
-  waterfall_df <- data.frame(uniq_acc)
-  # ratio of peptide occurences für df1 und df2
-  waterfall_df$set1 <- sapply(uniq_acc, function(acc) {
-    mean(ifelse(is.na(tuple::matchAll(acc, df1$Accessions)), 0,
-      (length(tuple::matchAll(acc, df1$Accessions)) / length(unique(df1$Patient_ID))) * 100
-    ))
-  })
-
-  waterfall_df$set2 <- sapply(uniq_acc, function(acc) {
-    mean(ifelse(is.na(tuple::matchAll(acc, df2$Accessions)), 0,
-      (length(tuple::matchAll(acc, df2$Accessions)) / length(unique(df2$Patient_ID))) * 100
-    ))
-  })
-
-  waterfall_df$Total <- sapply(uniq_acc, function(acc) {
-    (length(tuple::matchAll(acc, c(df1$Accessions, df2$Accessions))) /
-      length(c(unique(df1$Patient_ID), unique(df2$Patient_ID)))) * 100
-  })
 
 
   # filtern des df
@@ -231,18 +329,26 @@ make_waterfall_df <- function(df1, df2, with_seq) {
 ## OUTPUT: Waterfall plot of a pairwise comparison
 ##
 plot_waterfall <- function(waterfall_df, name1, name2, title, with_seq) {
+  
+  
+  #print("HELLO")
+  
   if (with_seq == TRUE) {
-    w <- waterfall_df %>% mutate(uniq_seq = factor(uniq_seq, levels = unique(uniq_seq)))
+    #print("seq")
+    w <- waterfall_df %>% dplyr::mutate(uniq_seq = factor(uniq_seq, levels = unique(uniq_seq)))
     x <- w$uniq_seq
     x_lab_text <- "Sequences"
-  } else {
-    (with_seq == FALSE)
+    #print("seq")
+  } 
+  else  {
+    print("acc")
+    w <- waterfall_df %>% dplyr::mutate(uniq_acc = factor(uniq_acc, levels = unique(uniq_acc)))
+    x <- w$uniq_acc
+    x_lab_text <- "Source Proteins"
+    #print("acc")
   }
-  w <- waterfall_df %>% mutate(uniq_acc = factor(uniq_acc, levels = unique(uniq_acc)))
-  x <- w$uniq_acc
-  x_lab_text <- "Source Proteins"
-
-
+  
+  #print("plot")
   # plot waterfall plot
   ggplot(w, aes(x = x)) +
     geom_bar(aes(y = set1, fill = name1), stat = "identity", width = 1) +
@@ -381,11 +487,12 @@ plot_custom_venn <- function(set, title) {
   venn_plot <- ggVennDiagram(set,
     label_alpha = 0,
     label = "count",
-    label_size = 4,
+    label_size = 4.5,
     edge_size = 0
   ) +
     scale_fill_gradient(low = "papayawhip", high = "paleturquoise4") +
     ggtitle(title) +
+    scale_x_continuous(expand = expansion(mult = 0.2))+
     theme(plot.title = element_text(hjust = 0.5))
   plot(venn_plot)
   return(venn_data)
@@ -405,29 +512,31 @@ plot_custom_venn <- function(set, title) {
 ## OUTPUT:
 ##
 plot_length_distribution <- function(df, as_bar = TRUE, title) {
-  df$len <- apply(df, 2, nchar)[, 4]
+  df$len <- apply(df, 2, nchar)[, "Sequence"]
   counts <- aggregate(df$len,
     by = list(Tumor_region = df$Tumor_region, len = df$len),
     FUN = table
   )
+  test <- df
 
   if (as_bar == TRUE) {
-    ggplot(counts, aes(x = len, y = x, group = Tumor_region, fill = Tumor_region)) +
+    len_plot <- ggplot(counts, aes(x = len, y = x, group = Tumor_region, fill = Tumor_region)) +
       geom_bar(stat = "identity") +
-      scale_fill_manual(values = brewer.pal(4, "Set2")) +
+      scale_fill_manual(values = region_color) +
       labs(x = "Peptide length", y = "number of HLA peptides") +
       theme_classic() +
       ggtitle(title) +
       theme(axis.text.x = element_text(angle = 45, vjust = 1.2, hjust = 1.2))
   } else {
-    ggplot(counts, aes(x = len, y = x, group = Tumor_region, color = Tumor_region)) +
+    len_plot <- ggplot(counts, aes(x = len, y = x, group = Tumor_region, color = Tumor_region)) +
       geom_line() +
       scale_color_manual(values = brewer.pal(4, "Set2")) +
       labs(x = "Peptide length", y = "number of HLA peptides") +
       theme_classic() +
-      ggtitle(title)
+      ggtitle(title) +
+      theme(axis.text.x = element_text(angle = 45, vjust = 1.2, hjust = 1.2))
   }
-  theme(axis.text.x = element_text(angle = 45, vjust = 1.2, hjust = 1.2))
+  plot(len_plot)
 }
 
 
@@ -595,7 +704,7 @@ netMHCpan_results_to_df_II <- function(file) {
 summarise_binder_pred <- function(binding_prediction_df) {
   high_freq_pep_df <- data.frame(Peptide = unique(binding_prediction_df$Peptide))
 
-  binding_prediction_df_wb <- binding_prediction_df[binding_prediction_df$BindLevel == "WB", ][2:3]
+  binding_prediction_df_wb <- binding_prediction_df[binding_prediction_df$BindLevel == "WB", ][2:3]# vorher 2:3für tumor regionen 
   binding_prediction_df_sb <- binding_prediction_df[binding_prediction_df$BindLevel == "SB", ][2:3]
 
   binding_prediction_df_wb <- binding_prediction_df_wb %>%

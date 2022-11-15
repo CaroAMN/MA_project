@@ -763,7 +763,7 @@ oncoplot(maf = all_mafset,
 bed_file = read.csv(file = "hglft_genome_298d9_1b60f0.sort.merged.bed", sep = "\t", header = FALSE, labelPos = "all")
 
 bed_file$Difference = bed_file$V3 -bed_file$V2
-kit_size = sum(bed_file$Difference)
+kit_size = sum(bed_file$V3 -bed_file$V2)
 kit_size
 #Lolipop plots -----------------------------
 

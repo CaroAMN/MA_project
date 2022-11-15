@@ -60,7 +60,7 @@ DE_analysis <- function(deseq2_object, contrast, lfc, padj) {
 ##             - padj: threshold for p adjusted value [numeric]
 ## OUTPUT: plots a volcano plot of genes compared between two conditions
 ##
-make_volcano <- function(res_df, y_val, title, lfc, padju) {
+make_volcano <- function(res_df, y_val, title, lfc, padju, lab) {#, customshape, customsize) {
   EnhancedVolcano(res_df,
     lab = rownames(res_df),
     x = "log2FoldChange",
@@ -73,17 +73,23 @@ make_volcano <- function(res_df, y_val, title, lfc, padju) {
       max(res_df$log2FoldChange)
     ),
     ylab = bquote(paste(-Log[10], .(y_val))),
-    selectLab = NA, # if TRUE: gene names will be visible as labels
+    selectLab = lab, # if TRUE: gene names will be visible as labels
     labSize = 3, # gene label size
     drawConnectors = TRUE, # gene and corresponding labels are
     # connected with arrows
     title = title,
+    legendIconSize = 0,
+    #max.overlaps = 50,
+    legendLabels = NULL,
+
+   # shapeCustom = customshape,
+   # pointSize = customsize,
     legendPosition = "bottom",
-    legendLabels = c(
-      "NS", "Log2 FC",
-      y_val,
-      paste(y_val, "& Log2 FC")
-    )
+   # legendLabels = c(
+   #   "NS", "Log2 FC",
+   #   y_val,
+   #   paste(y_val, "& Log2 FC")
+   # )
   )
 }
 
@@ -102,17 +108,23 @@ make_volcano <- function(res_df, y_val, title, lfc, padju) {
 create_annotation_color <- function(patient_column,
                                     region_column,
                                     sex_column,
-                                    meth_column) {
+                                    meth_column,
+                                    gene_cluster) {
   patient_scale <- colorRampPalette(c("#543005", "#f5f5f5", "#003c30"))
   region_color <- c("#4B6C22", "#74add1", "#9e0142", "#fdae61")
-  sex_color <- c("#D5BD9E", "#565E71")
-  meth_color <- c("#4B6C22", "#74add1")
+  #sex_color <- c("#D5BD9E", "#565E71")
+  sex_color <- c("#D6B59F", "#9BA1BB")
+ # meth_color <- c("#4B6C22", "#74add1")
+  meth_color <- c("#AEBB93", "#E7BA8A")#E4A67C" )
+  cluster_color <- c("#344620","#606C38", "#AFB388", "#EDCC91",
+                     "#DDA15E", "#BC6C25", "#774418")
 
   # get the number of uniqe patient ids to extract colors from color scale
   sample_num <- length(unique(patient_column))
   # get a specific color palette with num of patients
   patient_color <- patient_scale(sample_num)
   # set names to asign for each level the right color
+  names(cluster_color) <- unique(gene_cluster)
   names(patient_color) <- unique(patient_column)
   names(region_color) <- sort(unique(region_column))
   names(sex_color) <- sort(unique(sex_column))
@@ -121,7 +133,8 @@ create_annotation_color <- function(patient_column,
     Tumor_region = region_color,
     Patient_ID = patient_color,
     Sex = sex_color,
-    MGMT_methylation = meth_color
+    MGMT_methylation = meth_color,
+    gene_cluster = cluster_color
   )
   return(annotation_color)
 }
@@ -138,19 +151,22 @@ create_annotation_color <- function(patient_column,
 ##             - batch: column in vsd df for which batch correction
 ##                      should be performed [vector]
 ## OUTPUT: heatmap of selected genes with metadata column annotation
-make_heatmap <- function(gene_selection, vsd, batch, annotation_color, k) {
+make_heatmap <- function(gene_selection, vsd, batch, annotation_color, row_df) {
   # get vst normalized counts df for gene selection
+  col_names <- vsd$Patient_ID
   vsd_mat <- as.data.frame(assay(vsd)) %>%
     dplyr::filter(row.names(assay(vsd)) %in% gene_selection)
 # remove batch effects with limma because it was suggested by deseq2 authors
 # https://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
   if (!is.null(batch)) {
+    print("removed batch")
     design_matrix <- model.matrix(~Tumor_region, colData(vsd))
     vsd_rm_batch <- limma::removeBatchEffect(vsd_mat,
                                              batch,
                                              design = design_matrix)
     vsd_mat <- vsd_rm_batch
   }
+  #colnames(vsd_mat) <- col_names
   # annotation for heatmap
   annotation_df <- data.frame(
     "Tumor_region" = vsd@colData@listData$Tumor_region,
@@ -158,25 +174,32 @@ make_heatmap <- function(gene_selection, vsd, batch, annotation_color, k) {
     "Sex" = vsd@colData@listData$Sex,
     "MGMT_methylation" = vsd@colData@listData$MGMT
   )
-  if (!is.null(k)) {
-    pheatmap(
+  row_anno <- data.frame("Gene clusters" = row_df)
+  
+  # if (!is.null(k)) {
+  #   pheatmap(
+  #     vsd_mat,
+  #     scale = "row", # genes = rows are z-score transformed
+  #     show_rownames = FALSE,
+  #     annotation_col = annotation_df,
+  #     annotation_colors = annotation_color,
+  #     kmeans_k = k
+  #   )
+#  } else {
+    pheatmap::pheatmap(
       vsd_mat,
+      labels_col= col_names,
       scale = "row", # genes = rows are z-score transformed
       show_rownames = FALSE,
       annotation_col = annotation_df,
+      annotation_row = row_df,
       annotation_colors = annotation_color,
-      kmeans_k = k
+      #cluster_cols = as.hclust(dend)
+      cutree_cols = 4,
+      cutree_rows = 7
+      
     )
-  } else {
-    pheatmap(
-      vsd_mat,
-      scale = "row", # genes = rows are z-score transformed
-      show_rownames = FALSE,
-      annotation_col = annotation_df,
-      annotation_colors = annotation_color,
-      cutree_cols = 4
-    )
-  }
+ # }
 # 
 #   # draw heatmap
 #   pheatmap(
